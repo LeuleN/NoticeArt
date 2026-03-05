@@ -1,0 +1,199 @@
+package com.example.userflowdemo
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.example.userflowdemo.ui.theme.UserFlowDemoTheme
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.LaunchedEffect
+
+// Import for Room
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            UserFlowDemoTheme {
+                EntryApp()
+            }
+        }
+    }
+}
+
+val isDraft: Boolean = true
+
+@Entity
+data class Entry(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val title: String,
+    val timestamp: Long = System.currentTimeMillis(),
+    val isDraft: Boolean = false
+)
+
+@Composable
+fun EntryApp(
+    viewModel: EntryViewModel = viewModel()
+) {
+    var currentScreen by rememberSaveable { mutableStateOf("home") }
+
+    val entries by viewModel.entries.collectAsState()
+    val draft by viewModel.draft.collectAsState()
+
+    if (currentScreen == "home") {
+        HomeScreen(
+            entries = entries,
+            draft = draft,
+            onAddClick = {
+                if (draft == null) {
+                    viewModel.createDraft()
+                }
+                currentScreen = "newEntry"
+            },
+            onDraftClick = {
+                currentScreen = "newEntry"
+            }
+        )
+    } else {
+        NewEntryScreen(
+            draft = draft,
+            onTitleChange = { viewModel.updateDraft(it) },
+            onPublish = {
+                viewModel.publishDraft()
+                currentScreen = "home"
+            },
+            onCancel = { currentScreen = "home" }
+        )
+    }
+}
+
+@Composable
+fun HomeScreen(
+    entries: List<Entry>,
+    draft: Entry?,
+    onAddClick: () -> Unit,
+    onDraftClick: () -> Unit
+) {
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddClick) {
+                Text("+")
+            }
+        }
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+
+            Text("Home Screen")
+
+            draft?.let {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "[Draft] ${it.title}",
+                    color = Color.Red,
+                    modifier = Modifier.clickable { onDraftClick() }
+                )
+            }
+
+            entries
+                .filter { !it.isDraft }
+                .forEach { entry ->
+
+                    val formattedTime = java.text.SimpleDateFormat(
+                        "MMM dd, yyyy hh:mm a",
+                        java.util.Locale.getDefault()
+                    ).format(java.util.Date(entry.timestamp))
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text("• ${entry.title}")
+                    Text(formattedTime)
+                }
+        }
+    }
+}
+
+@Composable
+fun NewEntryScreen(
+    draft: Entry?,
+    onTitleChange: (String) -> Unit,
+    onPublish: () -> Unit,
+    onCancel: () -> Unit
+) {
+    var title by rememberSaveable { mutableStateOf(draft?.title ?: "") }
+    var showError by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(draft) {
+        title = draft?.title ?: ""
+    }
+
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    if (title.isBlank()) {
+                        showError = true
+                    } else {
+                        onPublish()
+                    }
+                }
+            ) {
+                Text("✓")
+            }
+        }
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+
+            OutlinedTextField(
+                value = title,
+                onValueChange = {
+                    title = it
+                    showError = false
+                    onTitleChange(it)
+                },
+                label = { Text("Title") }
+            )
+
+            if (showError) {
+                Text(
+                    text = "Title required",
+                    color = Color.Red
+                )
+            }
+        }
+    }
+}
