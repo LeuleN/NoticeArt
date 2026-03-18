@@ -65,6 +65,16 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteDraft() {
+        viewModelScope.launch {
+            _draft.value?.let {
+                repository.delete(it)
+                _draft.value = null
+            }
+        }
+    }
+
+
     fun deleteEntry(entry: Entry) {
         viewModelScope.launch {
             repository.delete(entry)

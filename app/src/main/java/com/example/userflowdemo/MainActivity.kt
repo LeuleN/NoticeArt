@@ -87,7 +87,11 @@ fun EntryApp(
                 viewModel.publishDraft()
                 currentScreen = "home"
             },
-            onCancel = { currentScreen = "home" }
+            onBack = { currentScreen = "home" },
+            onDeleteDraft = {
+                viewModel.deleteDraft()
+                currentScreen = "home"
+            }
         )
     }
 }
@@ -147,7 +151,8 @@ fun NewEntryScreen(
     draft: Entry?,
     onTitleChange: (String) -> Unit,
     onPublish: () -> Unit,
-    onCancel: () -> Unit
+    onBack: () -> Unit,
+    onDeleteDraft: () -> Unit
 ) {
     var title by rememberSaveable { mutableStateOf(draft?.title ?: "") }
     var showError by rememberSaveable { mutableStateOf(false) }
@@ -194,6 +199,26 @@ fun NewEntryScreen(
                     color = Color.Red
                 )
             }
+
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Back",
+                modifier = Modifier.clickable {
+                    onBack()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Discard Draft",
+                color = Color.Red,
+                modifier = Modifier.clickable {
+                    onDeleteDraft()
+                }
+            )
         }
     }
 }
