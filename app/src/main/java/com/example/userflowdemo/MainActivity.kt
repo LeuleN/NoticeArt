@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 val isDraft: Boolean = true
 
 @Entity
