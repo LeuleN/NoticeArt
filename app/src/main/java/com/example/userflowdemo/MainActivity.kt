@@ -45,9 +45,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
-val isDraft: Boolean = true
-
 @Entity
 data class Entry(
     @PrimaryKey(autoGenerate = true)
@@ -62,6 +59,7 @@ fun EntryApp(
     viewModel: EntryViewModel = viewModel()
 ) {
     var currentScreen by rememberSaveable { mutableStateOf("home") }
+    var selectedEntry by rememberSaveable { mutableStateOf<Entry?>(null) }
 
     val entries by viewModel.entries.collectAsState()
     val draft by viewModel.draft.collectAsState()
@@ -78,9 +76,13 @@ fun EntryApp(
             },
             onDraftClick = {
                 currentScreen = "newEntry"
+            },
+            onEntryClick = { entry ->
+                selectedEntry = entry
+                currentScreen = "detail"
             }
         )
-    } else {
+    } else if (currentScreen == "newEntry") {
         NewEntryScreen(
             draft = draft,
             onTitleChange = { viewModel.updateDraft(it) },
@@ -94,6 +96,21 @@ fun EntryApp(
                 currentScreen = "home"
             }
         )
+    } else if (currentScreen == "detail") {
+        selectedEntry?.let {
+            EntryDetailScreen(
+                entry = it,
+                onBack = { currentScreen = "home" },
+                onDelete = {
+                    viewModel.deleteEntry(it)
+                    currentScreen = "home"
+                },
+                onEdit = {
+                    viewModel.loadEntryAsDraft(it)
+                    currentScreen = "newEntry"
+                }
+            )
+        }
     }
 }
 
@@ -102,7 +119,8 @@ fun HomeScreen(
     entries: List<Entry>,
     draft: Entry?,
     onAddClick: () -> Unit,
-    onDraftClick: () -> Unit
+    onDraftClick: () -> Unit,
+    onEntryClick: (Entry) -> Unit
 ) {
     Scaffold(
         floatingActionButton = {
@@ -123,7 +141,7 @@ fun HomeScreen(
             draft?.let {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "[Draft] ${it.title}",
+                    text = "[Draft • Unsaved] ${it.title}",
                     color = Color.Red,
                     modifier = Modifier.clickable { onDraftClick() }
                 )
@@ -140,7 +158,12 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Text("• ${entry.title}")
+                    Text(
+                        text = "• ${entry.title}",
+                        modifier = Modifier.clickable {
+                            onEntryClick(entry)
+                        }
+                    )
                     Text(formattedTime)
                 }
         }
@@ -201,7 +224,6 @@ fun NewEntryScreen(
                 )
             }
 
-
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
@@ -221,5 +243,54 @@ fun NewEntryScreen(
                 }
             )
         }
+    }
+}
+
+@Composable
+fun EntryDetailScreen(
+    entry: Entry,
+    onBack: () -> Unit,
+    onDelete: () -> Unit,
+    onEdit: () -> Unit
+) {
+    val formattedTime = java.text.SimpleDateFormat(
+        "MMM dd, yyyy hh:mm a",
+        java.util.Locale.getDefault()
+    ).format(java.util.Date(entry.timestamp))
+
+    Column(
+        modifier = Modifier.padding(16.dp)
+    ) {
+
+        Text("Entry Detail")
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Title: ${entry.title}")
+        Text("Date: $formattedTime")
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Back",
+            modifier = Modifier.clickable { onBack() }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Edit",
+            modifier = Modifier.clickable {
+                onEdit()
+            }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Delete Entry",
+            color = Color.Red,
+            modifier = Modifier.clickable { onDelete() }
+        )
     }
 }

@@ -74,6 +74,13 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadEntryAsDraft(entry: Entry) {
+        viewModelScope.launch {
+            val updated = entry.copy(isDraft = true)
+            repository.update(updated)
+            _draft.value = updated
+        }
+    }
 
     fun deleteEntry(entry: Entry) {
         viewModelScope.launch {
