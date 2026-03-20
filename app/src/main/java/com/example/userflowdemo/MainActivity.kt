@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 
 // Import for Room
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,7 +69,7 @@ fun EntryApp(
     viewModel: EntryViewModel = viewModel()
 ) {
     var currentScreen by rememberSaveable { mutableStateOf("home") }
-    var selectedEntry by rememberSaveable { mutableStateOf<Entry?>(null) }
+    var selectedEntry by remember { mutableStateOf<Entry?>(null) }
 
     val entries by viewModel.entries.collectAsState()
     val draft by viewModel.draft.collectAsState()
@@ -211,9 +212,15 @@ fun NewEntryScreen(
     }
 
     val imagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
+
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+
             onImageSelected(it.toString())
         }
     }
@@ -263,7 +270,7 @@ fun NewEntryScreen(
                 Text(
                     text = "Add Image",
                     modifier = Modifier.clickable {
-                        imagePicker.launch("image/*")
+                        imagePicker.launch(arrayOf("image/*"))
                     }
                 )
                 
