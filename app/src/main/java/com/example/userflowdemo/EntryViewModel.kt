@@ -91,6 +91,17 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    fun updateColor(color: Int) {
+        viewModelScope.launch {
+            _draft.value?.let {
+                val updated = it.copy(color = color)
+                repository.update(updated)
+                _draft.value = updated
+            }
+        }
+    }
+
     fun deleteEntry(entry: Entry) {
         viewModelScope.launch {
             repository.delete(entry)

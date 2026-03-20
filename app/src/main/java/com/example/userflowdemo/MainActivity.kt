@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -26,14 +25,28 @@ import com.example.userflowdemo.ui.theme.UserFlowDemoTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.LaunchedEffect
 import android.net.Uri
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.rememberAsyncImagePainter
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 
 // Import for Room
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
 
@@ -49,18 +62,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-@Entity
-data class Entry(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
-    val title: String,
-    val timestamp: Long = System.currentTimeMillis(),
-    val isDraft: Boolean = false,
-
-    // NEW
-    val imageUri: String? = null
-)
 
 @Composable
 fun EntryApp(
@@ -103,7 +104,8 @@ fun EntryApp(
                 viewModel.deleteDraft()
                 currentScreen = "home"
             },
-            onImageSelected = { viewModel.attachImage(it) } // 🔥 NEW
+            onImageSelected = { viewModel.attachImage(it) },
+            onColorSelected = { viewModel.updateColor(it) }
         )
     } else if (currentScreen == "detail") {
         selectedEntry?.let {
@@ -167,12 +169,23 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
-                        text = "• ${entry.title} ${if (entry.imageUri != null) "📷" else ""}",
-                        modifier = Modifier.clickable {
-                            onEntryClick(entry)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        entry.color?.let {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(it))
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
                         }
-                    )
+                        Text(
+                            text = "• ${entry.title} ${if (entry.imageUri != null) "📷" else ""}",
+                            modifier = Modifier.clickable {
+                                onEntryClick(entry)
+                            }
+                        )
+                    }
                     Text(formattedTime)
                 }
         }
@@ -186,16 +199,17 @@ fun NewEntryScreen(
     onPublish: () -> Unit,
     onBack: () -> Unit,
     onDeleteDraft: () -> Unit,
-    onImageSelected: (String) -> Unit // NEW
+    onImageSelected: (String) -> Unit,
+    onColorSelected: (Int) -> Unit
 ) {
     var title by rememberSaveable { mutableStateOf(draft?.title ?: "") }
     var showError by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(draft) {
         title = draft?.title ?: ""
     }
 
-    // 🔥 Image picker
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -226,7 +240,6 @@ fun NewEntryScreen(
                 .padding(16.dp)
         ) {
 
-            // 🔷 Title
             OutlinedTextField(
                 value = title,
                 onValueChange = {
@@ -246,28 +259,80 @@ fun NewEntryScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 🔷 Add Image Button
-            Text(
-                text = "Add Image",
-                modifier = Modifier.clickable {
-                    imagePicker.launch("image/*")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Add Image",
+                    modifier = Modifier.clickable {
+                        imagePicker.launch("image/*")
+                    }
+                )
+                
+                draft?.color?.let {
+                    Spacer(modifier = Modifier.size(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color(it))
+                    )
+                    Text(" (Selected Color)", modifier = Modifier.padding(start = 8.dp))
                 }
-            )
+            }
 
-            // 🔷 Image Preview
             draft?.imageUri?.let { uri ->
                 Spacer(modifier = Modifier.height(16.dp))
+                
+                val bitmap = remember(uri) {
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(uri))
+                            ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                                decoder.isMutableRequired = true
+                            }
+                        } else {
+                            context.contentResolver.openInputStream(Uri.parse(uri))?.use {
+                                BitmapFactory.decodeStream(it)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
 
-                Image(
-                    painter = rememberAsyncImagePainter(uri),
-                    contentDescription = null,
-                    modifier = Modifier.height(150.dp)
-                )
+                Box {
+                    Image(
+                        painter = rememberAsyncImagePainter(uri),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .height(200.dp)
+                            .pointerInput(uri) {
+                                detectTapGestures { offset ->
+                                    bitmap?.let { b ->
+                                        try {
+                                            val x = (offset.x / size.width * b.width).toInt().coerceIn(0, b.width - 1)
+                                            val y = (offset.y / size.height * b.height).toInt().coerceIn(0, b.height - 1)
+                                            val pixel = b.getPixel(x, y)
+                                            onColorSelected(pixel)
+                                        } catch (e: Exception) {}
+                                    }
+                                }
+                            }
+                    )
+                    if (bitmap != null) {
+                        Text(
+                            "Tap image to pick color",
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.5f))
+                                .padding(4.dp),
+                            color = Color.White
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 🔷 Navigation
             Text(
                 text = "Back",
                 modifier = Modifier.clickable {
@@ -308,10 +373,20 @@ fun EntryDetailScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Title: ${entry.title}")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Title: ${entry.title}")
+            entry.color?.let {
+                Spacer(modifier = Modifier.size(16.dp))
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(it))
+                )
+            }
+        }
         Text("Date: $formattedTime")
 
-        // 🔥 IMAGE PREVIEW (NEW)
         entry.imageUri?.let { uri ->
             Spacer(modifier = Modifier.height(16.dp))
 
