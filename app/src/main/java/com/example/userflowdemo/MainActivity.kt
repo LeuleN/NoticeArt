@@ -25,6 +25,11 @@ import androidx.compose.ui.unit.dp
 import com.example.userflowdemo.ui.theme.UserFlowDemoTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.LaunchedEffect
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.rememberAsyncImagePainter
+import androidx.compose.foundation.Image
 
 // Import for Room
 import androidx.room.Entity
@@ -51,7 +56,10 @@ data class Entry(
     val id: Long = 0,
     val title: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val isDraft: Boolean = false
+    val isDraft: Boolean = false,
+
+    // NEW
+    val imageUri: String? = null
 )
 
 @Composable
@@ -94,7 +102,8 @@ fun EntryApp(
             onDeleteDraft = {
                 viewModel.deleteDraft()
                 currentScreen = "home"
-            }
+            },
+            onImageSelected = { viewModel.attachImage(it) } // 🔥 NEW
         )
     } else if (currentScreen == "detail") {
         selectedEntry?.let {
@@ -159,7 +168,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "• ${entry.title}",
+                        text = "• ${entry.title} ${if (entry.imageUri != null) "📷" else ""}",
                         modifier = Modifier.clickable {
                             onEntryClick(entry)
                         }
@@ -176,13 +185,23 @@ fun NewEntryScreen(
     onTitleChange: (String) -> Unit,
     onPublish: () -> Unit,
     onBack: () -> Unit,
-    onDeleteDraft: () -> Unit
+    onDeleteDraft: () -> Unit,
+    onImageSelected: (String) -> Unit // NEW
 ) {
     var title by rememberSaveable { mutableStateOf(draft?.title ?: "") }
     var showError by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(draft) {
         title = draft?.title ?: ""
+    }
+
+    // 🔥 Image picker
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            onImageSelected(it.toString())
+        }
     }
 
     Scaffold(
@@ -207,6 +226,7 @@ fun NewEntryScreen(
                 .padding(16.dp)
         ) {
 
+            // 🔷 Title
             OutlinedTextField(
                 value = title,
                 onValueChange = {
@@ -226,6 +246,28 @@ fun NewEntryScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // 🔷 Add Image Button
+            Text(
+                text = "Add Image",
+                modifier = Modifier.clickable {
+                    imagePicker.launch("image/*")
+                }
+            )
+
+            // 🔷 Image Preview
+            draft?.imageUri?.let { uri ->
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Image(
+                    painter = rememberAsyncImagePainter(uri),
+                    contentDescription = null,
+                    modifier = Modifier.height(150.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 🔷 Navigation
             Text(
                 text = "Back",
                 modifier = Modifier.clickable {
@@ -268,6 +310,17 @@ fun EntryDetailScreen(
 
         Text("Title: ${entry.title}")
         Text("Date: $formattedTime")
+
+        // 🔥 IMAGE PREVIEW (NEW)
+        entry.imageUri?.let { uri ->
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Image(
+                painter = rememberAsyncImagePainter(uri),
+                contentDescription = null,
+                modifier = Modifier.height(200.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 

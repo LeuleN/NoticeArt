@@ -82,6 +82,15 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun attachImage(uri: String) {
+        viewModelScope.launch {
+            _draft.value?.let {
+                val updated = it.copy(imageUri = uri)
+                repository.update(updated)
+                _draft.value = updated
+            }
+        }
+    }
     fun deleteEntry(entry: Entry) {
         viewModelScope.launch {
             repository.delete(entry)
