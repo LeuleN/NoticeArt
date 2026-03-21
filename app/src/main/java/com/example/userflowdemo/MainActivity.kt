@@ -309,6 +309,20 @@ fun NewEntryScreen(
         }
     }
 
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+
+            onImageSelected(it.toString())
+        }
+    }
+
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
