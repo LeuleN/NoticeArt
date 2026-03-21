@@ -52,6 +52,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Changes start here
+    fun updateEntry(entry: Entry) {
+        viewModelScope.launch {
+            repository.update(entry)
+        }
+    }
+// Changes end here
+
     fun publishDraft() {
         viewModelScope.launch {
             _draft.value?.let {
@@ -61,6 +69,46 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 repository.update(published)
                 _draft.value = null
+            }
+        }
+    }
+
+    fun deleteDraft() {
+        viewModelScope.launch {
+            _draft.value?.let {
+                repository.delete(it)
+                _draft.value = null
+            }
+        }
+    }
+
+    fun loadEntryAsDraft(entry: Entry) {
+        viewModelScope.launch {
+            val updated = entry.copy(isDraft = true)
+            repository.update(updated)
+            _draft.value = updated
+        }
+    }
+
+    fun attachImage(uri: String) {
+        viewModelScope.launch {
+            _draft.value?.let {
+                val updated = it.copy(
+                    imageUri = uri,
+                    color = null
+                )
+                repository.update(updated)
+                _draft.value = updated
+            }
+        }
+    }
+
+    fun updateColor(color: Int) {
+        viewModelScope.launch {
+            _draft.value?.let {
+                val updated = it.copy(color = color)
+                repository.update(updated)
+                _draft.value = updated
             }
         }
     }
