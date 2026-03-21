@@ -46,6 +46,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
+import androidx.compose.foundation.layout.safeDrawingPadding
 
 // Import for Room
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -71,6 +72,10 @@ fun EntryApp(
     var currentScreen by rememberSaveable { mutableStateOf("home") }
     var selectedEntry by remember { mutableStateOf<Entry?>(null) }
 
+    // Changes start here
+    var editingEntry by remember { mutableStateOf<Entry?>(null) }
+    // Changes end here
+
     val entries by viewModel.entries.collectAsState()
     val draft by viewModel.draft.collectAsState()
 
@@ -79,34 +84,100 @@ fun EntryApp(
             entries = entries,
             draft = draft,
             onAddClick = {
+                // Changes start here
+                editingEntry = null
+                selectedEntry = null
+                // Changes end here
+
                 if (draft == null) {
                     viewModel.createDraft()
                 }
                 currentScreen = "newEntry"
             },
             onDraftClick = {
+                // Changes start here
+                editingEntry = null
+                selectedEntry = null
+                // Changes end here
                 currentScreen = "newEntry"
             },
             onEntryClick = { entry ->
                 selectedEntry = entry
+                // Changes start here
+                editingEntry = null
+                // Changes end here
                 currentScreen = "detail"
             }
         )
     } else if (currentScreen == "newEntry") {
         NewEntryScreen(
             draft = draft,
-            onTitleChange = { viewModel.updateDraft(it) },
+            // Changes start here
+            editingEntry = editingEntry,
+            // Changes end here
+            onTitleChange = { newTitle ->
+                // Changes start here
+                if (editingEntry != null) {
+                    editingEntry = editingEntry!!.copy(title = newTitle)
+                } else {
+                    viewModel.updateDraft(newTitle)
+                }
+                // Changes end here
+            },
             onPublish = {
-                viewModel.publishDraft()
+                // Changes start here
+                if (editingEntry != null) {
+                    viewModel.updateEntry(
+                        editingEntry!!.copy(timestamp = System.currentTimeMillis())
+                    )
+                    selectedEntry = editingEntry
+                    editingEntry = null
+                } else {
+                    viewModel.publishDraft()
+                }
+                // Changes end here
                 currentScreen = "home"
             },
-            onBack = { currentScreen = "home" },
+            onBack = {
+                // Changes start here
+                if (editingEntry != null) {
+                    // Cancel edit: discard unsaved changes
+                    editingEntry = null
+                    currentScreen = "detail"
+                } else {
+                    currentScreen = "home"
+                }
+                // Changes end here
+            },
             onDeleteDraft = {
-                viewModel.deleteDraft()
-                currentScreen = "home"
+                // Changes start here
+                if (editingEntry == null) {
+                    viewModel.deleteDraft()
+                    currentScreen = "home"
+                }
+                // Changes end here
             },
-            onImageSelected = { viewModel.attachImage(it) },
-            onColorSelected = { viewModel.updateColor(it) }
+            onImageSelected = { uri ->
+                // Changes start here
+                if (editingEntry != null) {
+                    editingEntry = editingEntry!!.copy(
+                        imageUri = uri,
+                        color = null
+                    )
+                } else {
+                    viewModel.attachImage(uri)
+                }
+                // Changes end here
+            },
+            onColorSelected = { color ->
+                // Changes start here
+                if (editingEntry != null) {
+                    editingEntry = editingEntry!!.copy(color = color)
+                } else {
+                    viewModel.updateColor(color)
+                }
+                // Changes end here
+            }
         )
     } else if (currentScreen == "detail") {
         selectedEntry?.let {
@@ -115,10 +186,16 @@ fun EntryApp(
                 onBack = { currentScreen = "home" },
                 onDelete = {
                     viewModel.deleteEntry(it)
+                    // Changes start here
+                    selectedEntry = null
+                    editingEntry = null
+                    // Changes end here
                     currentScreen = "home"
                 },
                 onEdit = {
-                    viewModel.loadEntryAsDraft(it)
+                    // Changes start here
+                    editingEntry = it.copy()
+                    // Changes end here
                     currentScreen = "newEntry"
                 }
             )
@@ -196,6 +273,9 @@ fun HomeScreen(
 @Composable
 fun NewEntryScreen(
     draft: Entry?,
+    // Changes start here
+    editingEntry: Entry?,
+    // Changes end here
     onTitleChange: (String) -> Unit,
     onPublish: () -> Unit,
     onBack: () -> Unit,
@@ -203,12 +283,30 @@ fun NewEntryScreen(
     onImageSelected: (String) -> Unit,
     onColorSelected: (Int) -> Unit
 ) {
-    var title by rememberSaveable { mutableStateOf(draft?.title ?: "") }
+    // Changes start here
+    val currentEntry = editingEntry ?: draft
+    // Changes end here
+
+    var title by rememberSaveable { mutableStateOf(currentEntry?.title ?: "") }
     var showError by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
-    LaunchedEffect(draft) {
-        title = draft?.title ?: ""
+    // Changes start here
+    LaunchedEffect(currentEntry) {
+        title = currentEntry?.title ?: ""
+    }
+    // Changes end here
+
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            onImageSelected(it.toString())
+        }
     }
 
     val imagePicker = rememberLauncherForActivityResult(
@@ -254,7 +352,11 @@ fun NewEntryScreen(
                     showError = false
                     onTitleChange(it)
                 },
-                label = { Text("Title") }
+                label = {
+                    // Changes start here
+                    Text(if (editingEntry != null) "Edit Title" else "Title")
+                    // Changes end here
+                }
             )
 
             if (showError) {
@@ -273,8 +375,10 @@ fun NewEntryScreen(
                         imagePicker.launch(arrayOf("image/*"))
                     }
                 )
-                
-                draft?.color?.let {
+
+                // Changes start here
+                currentEntry?.color?.let {
+                    // Changes end here
                     Spacer(modifier = Modifier.size(16.dp))
                     Box(
                         modifier = Modifier
@@ -286,9 +390,11 @@ fun NewEntryScreen(
                 }
             }
 
-            draft?.imageUri?.let { uri ->
+            // Changes start here
+            currentEntry?.imageUri?.let { uri ->
+                // Changes end here
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 val bitmap = remember(uri) {
                     try {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -306,36 +412,37 @@ fun NewEntryScreen(
                     }
                 }
 
-                Box {
-                    Image(
-                        painter = rememberAsyncImagePainter(uri),
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
+                if (bitmap != null) {
+                    Text(
+                        "Tap image to pick color",
                         modifier = Modifier
-                            .height(200.dp)
-                            .pointerInput(uri) {
-                                detectTapGestures { offset ->
-                                    bitmap?.let { b ->
-                                        try {
-                                            val x = (offset.x / size.width * b.width).toInt().coerceIn(0, b.width - 1)
-                                            val y = (offset.y / size.height * b.height).toInt().coerceIn(0, b.height - 1)
-                                            val pixel = b.getPixel(x, y)
-                                            onColorSelected(pixel)
-                                        } catch (e: Exception) {}
+                            .padding(bottom = 8.dp)
+                            .background(Color.Black.copy(alpha = 0.5f))
+                            .padding(4.dp),
+                        color = Color.White
+                    )
+                }
+
+                Image(
+                    painter = rememberAsyncImagePainter(uri),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .height(200.dp)
+                        .pointerInput(uri) {
+                            detectTapGestures { offset ->
+                                bitmap?.let { b ->
+                                    try {
+                                        val x = (offset.x / size.width * b.width).toInt().coerceIn(0, b.width - 1)
+                                        val y = (offset.y / size.height * b.height).toInt().coerceIn(0, b.height - 1)
+                                        val pixel = b.getPixel(x, y)
+                                        onColorSelected(pixel)
+                                    } catch (e: Exception) {
                                     }
                                 }
                             }
-                    )
-                    if (bitmap != null) {
-                        Text(
-                            "Tap image to pick color",
-                            modifier = Modifier
-                                .background(Color.Black.copy(alpha = 0.5f))
-                                .padding(4.dp),
-                            color = Color.White
-                        )
-                    }
-                }
+                        }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -347,15 +454,19 @@ fun NewEntryScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Changes start here
+            if (editingEntry == null) {
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "Discard Draft",
-                color = Color.Red,
-                modifier = Modifier.clickable {
-                    onDeleteDraft()
-                }
-            )
+                Text(
+                    text = "Discard Draft",
+                    color = Color.Red,
+                    modifier = Modifier.clickable {
+                        onDeleteDraft()
+                    }
+                )
+            }
+            // Changes end here
         }
     }
 }
@@ -372,8 +483,12 @@ fun EntryDetailScreen(
         java.util.Locale.getDefault()
     ).format(java.util.Date(entry.timestamp))
 
+    // changed column so that there is padding in between detail screen text
+    // and notifications bar above. also imported safeDrawingPadding
     Column(
-        modifier = Modifier.padding(16.dp)
+        modifier = Modifier
+            .safeDrawingPadding()
+            .padding(16.dp)
     ) {
 
         Text("Entry Detail")

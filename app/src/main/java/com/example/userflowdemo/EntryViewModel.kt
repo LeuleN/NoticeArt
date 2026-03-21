@@ -52,6 +52,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Changes start here
+    fun updateEntry(entry: Entry) {
+        viewModelScope.launch {
+            repository.update(entry)
+        }
+    }
+// Changes end here
+
     fun publishDraft() {
         viewModelScope.launch {
             _draft.value?.let {
@@ -85,7 +93,10 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     fun attachImage(uri: String) {
         viewModelScope.launch {
             _draft.value?.let {
-                val updated = it.copy(imageUri = uri)
+                val updated = it.copy(
+                    imageUri = uri,
+                    color = null
+                )
                 repository.update(updated)
                 _draft.value = updated
             }
