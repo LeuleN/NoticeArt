@@ -1,58 +1,74 @@
 package com.example.userflowdemo
 
+import android.content.Intent
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import com.example.userflowdemo.ui.theme.UserFlowDemoTheme
-import androidx.compose.foundation.clickable
-import androidx.compose.runtime.LaunchedEffect
-import android.net.Uri
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.ImageDecoder
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import coil.compose.rememberAsyncImagePainter
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import android.content.Intent
-import androidx.compose.foundation.layout.safeDrawingPadding
-
-// Import for Room
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.collectAsState
-
-
+import coil.compose.rememberAsyncImagePainter
+import com.example.userflowdemo.ui.theme.UserFlowDemoTheme
+import androidx.compose.material3.FloatingActionButton
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,10 +87,7 @@ fun EntryApp(
 ) {
     var currentScreen by rememberSaveable { mutableStateOf("home") }
     var selectedEntry by remember { mutableStateOf<Entry?>(null) }
-
-    // Changes start here
     var editingEntry by remember { mutableStateOf<Entry?>(null) }
-    // Changes end here
 
     val entries by viewModel.entries.collectAsState()
     val draft by viewModel.draft.collectAsState()
@@ -84,48 +97,36 @@ fun EntryApp(
             entries = entries,
             draft = draft,
             onAddClick = {
-                // Changes start here
                 editingEntry = null
                 selectedEntry = null
-                // Changes end here
-
                 if (draft == null) {
                     viewModel.createDraft()
                 }
                 currentScreen = "newEntry"
             },
             onDraftClick = {
-                // Changes start here
                 editingEntry = null
                 selectedEntry = null
-                // Changes end here
                 currentScreen = "newEntry"
             },
             onEntryClick = { entry ->
                 selectedEntry = entry
-                // Changes start here
                 editingEntry = null
-                // Changes end here
                 currentScreen = "detail"
             }
         )
     } else if (currentScreen == "newEntry") {
         NewEntryScreen(
             draft = draft,
-            // Changes start here
             editingEntry = editingEntry,
-            // Changes end here
             onTitleChange = { newTitle ->
-                // Changes start here
                 if (editingEntry != null) {
                     editingEntry = editingEntry!!.copy(title = newTitle)
                 } else {
                     viewModel.updateDraft(newTitle)
                 }
-                // Changes end here
             },
             onPublish = {
-                // Changes start here
                 if (editingEntry != null) {
                     viewModel.updateEntry(
                         editingEntry!!.copy(timestamp = System.currentTimeMillis())
@@ -135,30 +136,23 @@ fun EntryApp(
                 } else {
                     viewModel.publishDraft()
                 }
-                // Changes end here
                 currentScreen = "home"
             },
             onBack = {
-                // Changes start here
                 if (editingEntry != null) {
-                    // Cancel edit: discard unsaved changes
                     editingEntry = null
                     currentScreen = "detail"
                 } else {
                     currentScreen = "home"
                 }
-                // Changes end here
             },
             onDeleteDraft = {
-                // Changes start here
                 if (editingEntry == null) {
                     viewModel.deleteDraft()
                     currentScreen = "home"
                 }
-                // Changes end here
             },
             onImageSelected = { uri ->
-                // Changes start here
                 if (editingEntry != null) {
                     editingEntry = editingEntry!!.copy(
                         imageUri = uri,
@@ -167,16 +161,13 @@ fun EntryApp(
                 } else {
                     viewModel.attachImage(uri)
                 }
-                // Changes end here
             },
             onColorSelected = { color ->
-                // Changes start here
                 if (editingEntry != null) {
                     editingEntry = editingEntry!!.copy(color = color)
                 } else {
                     viewModel.updateColor(color)
                 }
-                // Changes end here
             }
         )
     } else if (currentScreen == "detail") {
@@ -186,16 +177,12 @@ fun EntryApp(
                 onBack = { currentScreen = "home" },
                 onDelete = {
                     viewModel.deleteEntry(it)
-                    // Changes start here
                     selectedEntry = null
                     editingEntry = null
-                    // Changes end here
                     currentScreen = "home"
                 },
                 onEdit = {
-                    // Changes start here
                     editingEntry = it.copy()
-                    // Changes end here
                     currentScreen = "newEntry"
                 }
             )
@@ -203,6 +190,9 @@ fun EntryApp(
     }
 }
 
+/**
+ * Modern card-based grid layout for the Home Screen.
+ */
 @Composable
 fun HomeScreen(
     entries: List<Entry>,
@@ -211,71 +201,205 @@ fun HomeScreen(
     onDraftClick: () -> Unit,
     onEntryClick: (Entry) -> Unit
 ) {
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = onAddClick) {
-                Text("+")
-            }
-        }
-    ) { padding ->
-
+    Scaffold { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
+                .fillMaxSize()
         ) {
+            HomeHeader(userName = "Georgia")
 
-            Text("Home Screen")
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
 
-            draft?.let {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "[Draft • Unsaved] ${it.title}",
-                    color = Color.Red,
-                    modifier = Modifier.clickable { onDraftClick() }
-                )
-            }
-
-            entries
-                .filter { !it.isDraft }
-                .forEach { entry ->
-
-                    val formattedTime = java.text.SimpleDateFormat(
-                        "MMM dd, yyyy hh:mm a",
-                        java.util.Locale.getDefault()
-                    ).format(java.util.Date(entry.timestamp))
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        entry.color?.let {
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(it))
-                            )
-                            Spacer(modifier = Modifier.size(8.dp))
-                        }
-                        Text(
-                            text = "• ${entry.title} ${if (entry.imageUri != null) "📷" else ""}",
-                            modifier = Modifier.clickable {
-                                onEntryClick(entry)
-                            }
-                        )
-                    }
-                    Text(formattedTime)
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // 1. "+" Create Card (First Item)
+                item {
+                    AddCard(onAddClick = onAddClick)
                 }
+
+                // 2. Draft Card (inside grid if it exists)
+                if (draft != null) {
+                    item {
+                        DraftCard(draft = draft, onDraftClick = onDraftClick)
+                    }
+                }
+
+                // 3. Entry Cards
+                items(entries.filter { !it.isDraft }) { entry ->
+                    EntryCard(
+                        entry = entry,
+                        onClick = { onEntryClick(entry) }
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
+fun HomeHeader(userName: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 24.dp)
+    ) {
+        Text(
+            text = "Hello, $userName",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "What will you notice today?",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun AddCard(onAddClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+        ),
+        onClick = onAddClick
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                "+",
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = 64.sp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                fontWeight = FontWeight.Light
+            )
+        }
+    }
+}
+
+@Composable
+fun DraftCard(draft: Entry, onDraftClick: () -> Unit) {
+    EntryCard(
+        entry = draft,
+        onClick = onDraftClick,
+        isDraft = true
+    )
+}
+
+@Composable
+fun EntryCard(
+    entry: Entry,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isDraft: Boolean = false
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .alpha(if (isDraft) 0.8f else 1f),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        onClick = onClick
+    ) {
+        Box {
+            Column {
+                // Top area: Image preview, Color block, or Placeholder
+                val backgroundColor = when {
+                    entry.imageUri == null && entry.color != null -> Color(entry.color)
+                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .background(backgroundColor)
+                ) {
+                    if (entry.imageUri != null) {
+                        Image(
+                            painter = rememberAsyncImagePainter(entry.imageUri),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+
+                // Bottom area: Title and Date
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = entry.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (entry.imageUri != null) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("📷", fontSize = 14.sp)
+                        }
+                    }
+
+                    val formattedDate = remember(entry.timestamp) {
+                        java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
+                            .format(java.util.Date(entry.timestamp))
+                    }
+
+                    Text(
+                        text = formattedDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // DRAFT Badge Overlay
+            if (isDraft) {
+                Surface(
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .align(Alignment.TopStart),
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Text(
+                        text = "DRAFT",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Helper to determine if a draft is effectively empty and should be discarded.
+ */
+fun isDraftEmpty(entry: Entry?): Boolean {
+    return entry == null || (entry.title.isBlank() && entry.imageUri == null && entry.color == null)
+}
+
+@Composable
 fun NewEntryScreen(
     draft: Entry?,
-    // Changes start here
     editingEntry: Entry?,
-    // Changes end here
     onTitleChange: (String) -> Unit,
     onPublish: () -> Unit,
     onBack: () -> Unit,
@@ -283,42 +407,67 @@ fun NewEntryScreen(
     onImageSelected: (String) -> Unit,
     onColorSelected: (Int) -> Unit
 ) {
-    // Changes start here
     val currentEntry = editingEntry ?: draft
-    // Changes end here
-
     var title by rememberSaveable { mutableStateOf(currentEntry?.title ?: "") }
     var showError by rememberSaveable { mutableStateOf(false) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // Changes start here
     LaunchedEffect(currentEntry) {
-        title = currentEntry?.title ?: ""
-    }
-    // Changes end here
-
-    val imagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            context.contentResolver.takePersistableUriPermission(
-                it,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-            onImageSelected(it.toString())
+        // Only update local title state if currentEntry actually changes (e.g. switching between items)
+        // Keystrokes update currentEntry via onTitleChange, but we keep the local state for responsiveness.
+        if (currentEntry?.title != title && title.isEmpty()) {
+            title = currentEntry?.title ?: ""
         }
     }
 
+    val handleBack = {
+        if (editingEntry != null) {
+            // If editing an existing entry, just go back to detail
+            onBack()
+        } else {
+            // For drafts, check if it's empty
+            val currentDraftState = draft?.copy(title = title)
+            if (isDraftEmpty(currentDraftState)) {
+                onDeleteDraft() // Automatically delete and go home
+            } else {
+                showDiscardDialog = true // Confirm discard for contentful drafts
+            }
+        }
+    }
+
+    // Handle system back button
+    BackHandler(onBack = handleBack)
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard draft?") },
+            text = { Text("You have unsaved changes. Are you sure you want to discard this draft?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiscardDialog = false
+                    onDeleteDraft()
+                }) {
+                    Text("Discard")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
-
             context.contentResolver.takePersistableUriPermission(
                 it,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
-
             onImageSelected(it.toString())
         }
     }
@@ -338,13 +487,11 @@ fun NewEntryScreen(
             }
         }
     ) { padding ->
-
         Column(
             modifier = Modifier
                 .padding(padding)
                 .padding(16.dp)
         ) {
-
             OutlinedTextField(
                 value = title,
                 onValueChange = {
@@ -353,32 +500,36 @@ fun NewEntryScreen(
                     onTitleChange(it)
                 },
                 label = {
-                    // Changes start here
                     Text(if (editingEntry != null) "Edit Title" else "Title")
-                    // Changes end here
-                }
+                },
+                modifier = Modifier.fillMaxWidth()
             )
 
             if (showError) {
                 Text(
                     text = "Title required",
-                    color = Color.Red
+                    color = Color.Red,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Add Image",
-                    modifier = Modifier.clickable {
-                        imagePicker.launch(arrayOf("image/*"))
-                    }
-                )
+                Surface(
+                    onClick = { imagePicker.launch(arrayOf("image/*")) },
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Text(
+                        text = "Add Image",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
 
-                // Changes start here
                 currentEntry?.color?.let {
-                    // Changes end here
                     Spacer(modifier = Modifier.size(16.dp))
                     Box(
                         modifier = Modifier
@@ -386,13 +537,10 @@ fun NewEntryScreen(
                             .clip(CircleShape)
                             .background(Color(it))
                     )
-                    Text(" (Selected Color)", modifier = Modifier.padding(start = 8.dp))
                 }
             }
 
-            // Changes start here
             currentEntry?.imageUri?.let { uri ->
-                // Changes end here
                 Spacer(modifier = Modifier.height(16.dp))
 
                 val bitmap = remember(uri) {
@@ -412,61 +560,74 @@ fun NewEntryScreen(
                     }
                 }
 
-                if (bitmap != null) {
-                    Text(
-                        "Tap image to pick color",
+                Box(modifier = Modifier.height(200.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp))) {
+                    Image(
+                        painter = rememberAsyncImagePainter(uri),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .padding(bottom = 8.dp)
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .padding(4.dp),
-                        color = Color.White
-                    )
-                }
-
-                Image(
-                    painter = rememberAsyncImagePainter(uri),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .height(200.dp)
-                        .pointerInput(uri) {
-                            detectTapGestures { offset ->
-                                bitmap?.let { b ->
-                                    try {
-                                        val x = (offset.x / size.width * b.width).toInt().coerceIn(0, b.width - 1)
-                                        val y = (offset.y / size.height * b.height).toInt().coerceIn(0, b.height - 1)
-                                        val pixel = b.getPixel(x, y)
-                                        onColorSelected(pixel)
-                                    } catch (e: Exception) {
+                            .fillMaxSize()
+                            .pointerInput(uri) {
+                                detectTapGestures { offset ->
+                                    bitmap?.let { b ->
+                                        try {
+                                            val x = (offset.x / size.width * b.width).toInt().coerceIn(0, b.width - 1)
+                                            val y = (offset.y / size.height * b.height).toInt().coerceIn(0, b.height - 1)
+                                            val pixel = b.getPixel(x, y)
+                                            onColorSelected(pixel)
+                                        } catch (e: Exception) {
+                                        }
                                     }
                                 }
                             }
+                    )
+                    
+                    if (bitmap != null) {
+                        Surface(
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
+                            color = Color.Black.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                "Tap image to pick color",
+                                modifier = Modifier.padding(6.dp),
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall
+                            )
                         }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Back",
-                modifier = Modifier.clickable {
-                    onBack()
-                }
-            )
-
-            // Changes start here
-            if (editingEntry == null) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Discard Draft",
-                    color = Color.Red,
-                    modifier = Modifier.clickable {
-                        onDeleteDraft()
                     }
-                )
+                }
             }
-            // Changes end here
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Back",
+                    modifier = Modifier.clickable { handleBack() },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                if (editingEntry == null) {
+                    Text(
+                        text = "Discard Draft",
+                        color = Color.Red,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.clickable { 
+                            val currentDraftState = draft?.copy(title = title)
+                            if (isDraftEmpty(currentDraftState)) {
+                                onDeleteDraft()
+                            } else {
+                                showDiscardDialog = true 
+                            }
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -483,20 +644,25 @@ fun EntryDetailScreen(
         java.util.Locale.getDefault()
     ).format(java.util.Date(entry.timestamp))
 
-    // changed column so that there is padding in between detail screen text
-    // and notifications bar above. also imported safeDrawingPadding
     Column(
         modifier = Modifier
             .safeDrawingPadding()
             .padding(16.dp)
     ) {
+        Text(
+            text = "Entry Detail",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
 
-        Text("Entry Detail")
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Title: ${entry.title}")
+            Text(
+                text = entry.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
             entry.color?.let {
                 Spacer(modifier = Modifier.size(16.dp))
                 Box(
@@ -507,40 +673,56 @@ fun EntryDetailScreen(
                 )
             }
         }
-        Text("Date: $formattedTime")
+        
+        Text(
+            text = formattedTime,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
         entry.imageUri?.let { uri ->
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Image(
-                painter = rememberAsyncImagePainter(uri),
-                contentDescription = null,
-                modifier = Modifier.height(200.dp)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().height(300.dp)
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(uri),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.weight(1f))
 
-        Text(
-            text = "Back",
-            modifier = Modifier.clickable { onBack() }
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Back",
+                modifier = Modifier.clickable { onBack() },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Edit",
-            modifier = Modifier.clickable {
-                onEdit()
+            Row {
+                Text(
+                    text = "Edit",
+                    modifier = Modifier.clickable { onEdit() },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(24.dp))
+                Text(
+                    text = "Delete",
+                    color = Color.Red,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.clickable { onDelete() }
+                )
             }
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Delete Entry",
-            color = Color.Red,
-            modifier = Modifier.clickable { onDelete() }
-        )
+        }
     }
 }

@@ -31,10 +31,12 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createDraft(initialTitle: String = "") {
+    fun createDraft(title: String = "", imageUri: String? = null, color: Int? = null) {
         viewModelScope.launch {
             val draftEntry = Entry(
-                title = initialTitle,
+                title = title,
+                imageUri = imageUri,
+                color = color,
                 isDraft = true
             )
             repository.insert(draftEntry)
@@ -52,13 +54,11 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Changes start here
     fun updateEntry(entry: Entry) {
         viewModelScope.launch {
             repository.update(entry)
         }
     }
-// Changes end here
 
     fun publishDraft() {
         viewModelScope.launch {
