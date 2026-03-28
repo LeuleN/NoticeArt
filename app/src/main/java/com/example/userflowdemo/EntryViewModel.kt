@@ -60,6 +60,12 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun insertEntry(entry: Entry) {
+        viewModelScope.launch {
+            repository.insert(entry)
+        }
+    }
+
     fun publishDraft() {
         viewModelScope.launch {
             _draft.value?.let {

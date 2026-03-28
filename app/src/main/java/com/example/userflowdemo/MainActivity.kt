@@ -74,6 +74,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.ui.theme.UserFlowDemoTheme
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,13 +99,30 @@ fun EntryApp(
     var editingEntry by remember { mutableStateOf<Entry?>(null) }
     var originalEntry by remember { mutableStateOf<Entry?>(null) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    var recentlyDeletedEntry by remember { mutableStateOf<Entry?>(null) }
+
     val entries by viewModel.entries.collectAsState()
     val draft by viewModel.draft.collectAsState()
+
+    LaunchedEffect(recentlyDeletedEntry) {
+        recentlyDeletedEntry?.let { entry ->
+            val result = snackbarHostState.showSnackbar(
+                message = "Entry deleted",
+                actionLabel = "UNDO"
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.insertEntry(entry)
+            }
+            recentlyDeletedEntry = null
+        }
+    }
 
     if (currentScreen == "home") {
         HomeScreen(
             entries = entries,
             draft = draft,
+            snackbarHostState = snackbarHostState,
             onAddClick = {
                 editingEntry = null
                 originalEntry = null
@@ -128,6 +149,7 @@ fun EntryApp(
             draft = draft,
             editingEntry = editingEntry,
             originalEntry = originalEntry,
+            snackbarHostState = snackbarHostState,
             onTitleChange = { newTitle ->
                 if (editingEntry != null) {
                     editingEntry = editingEntry!!.copy(title = newTitle)
@@ -190,6 +212,7 @@ fun EntryApp(
                 entry = it,
                 onBack = { currentScreen = "home" },
                 onDelete = {
+                    recentlyDeletedEntry = it
                     viewModel.deleteEntry(it)
                     selectedEntry = null
                     editingEntry = null
@@ -214,6 +237,7 @@ fun EntryApp(
 fun HomeScreen(
     entries: List<Entry>,
     draft: Entry?,
+    snackbarHostState: SnackbarHostState,
     onAddClick: () -> Unit,
     onDraftClick: () -> Unit,
     onEntryClick: (Entry) -> Unit
@@ -224,33 +248,35 @@ fun HomeScreen(
         AlertDialog(
             onDismissRequest = { showDraftDialog = false },
             title = { Text("Unfinished draft") },
-            text = { Text("You have an unfinished draft. What would you like to do?") },
+            text = { Text("You have unsaved changes. What would you like to do?") },
             confirmButton = {
-                TextButton(onClick = {
-                    showDraftDialog = false
-                    onDraftClick()
-                }) {
-                    Text("Continue Draft")
-                }
-            },
-            dismissButton = {
                 Row {
-                    TextButton(onClick = { showDraftDialog = false }) {
-                        Text("Cancel")
+                    TextButton(onClick = {
+                        showDraftDialog = false
+                        onDraftClick()
+                    }) {
+                        Text("Continue Draft")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(onClick = {
                         showDraftDialog = false
                         onAddClick()
                     }) {
-                        Text("Start New Entry")
+                        Text("Start New Entry", fontWeight = FontWeight.Bold)
                     }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDraftDialog = false }) {
+                    Text("Cancel")
                 }
             }
         )
     }
 
-    Scaffold { padding ->
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -466,6 +492,7 @@ fun NewEntryScreen(
     draft: Entry?,
     editingEntry: Entry?,
     originalEntry: Entry?,
+    snackbarHostState: SnackbarHostState,
     onTitleChange: (String) -> Unit,
     onPublish: () -> Unit,
     onBack: () -> Unit,
@@ -584,6 +611,7 @@ fun NewEntryScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
