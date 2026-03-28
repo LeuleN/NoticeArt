@@ -3,33 +3,61 @@
 Prototype implementation for the "Art of Noticing" mobile application user flows.
 
 ## Overview
-This repository contains early development work for implementing core user flows using Android Jetpack Compose and modern Android architecture components.
+This repository contains development work for implementing core user flows using Android Jetpack Compose and modern Android architecture components. The app focuses on capturing creative observations through a flexible, draft-based diary system.
 
-## User Flow 1 – Entry Creation
-Initial implementation includes:
+## User Flow 1 – Entry Creation + Media Capture
+Implementation includes:
 
-- Entry creation UI using Jetpack Compose
-- Draft persistence logic
-- Room database entity for entries
-- ViewModel state flow to manage UI state
+- Draft-first entry creation system
+- Title input with validation (required for publishing)
+- Image attachment via system picker
+- Color extraction using tap-based pixel sampling
+- Automatic timestamp generation
+- Entry persistence using Room database
+- Entry display on home screen with media indicators
 
-## User Flow 2 – Partial Implementation
-Work in progress for additional entry interaction and navigation behavior.
+## User Flow 2 – Entry Interaction (Edit, Delete, View)
+Implementation includes:
+
+- Entry detail screen with full view
+- Edit flow using draft reuse (entry → draft → update)
+- Delete with confirmation dialog
+- Undo delete using Snackbar
+- Navigation between home, detail, and edit screens
 
 ## Architecture
-The project follows a simplified MVVM architecture:
+The project follows an MVVM architecture:
 
 UI (Jetpack Compose)  
-→ ViewModel  
-→ Repository (planned)  
+→ ViewModel (StateFlow)  
+→ Repository  
 → Room Database
+
+Key design decisions:
+
+- Draft-first workflow for all create/edit actions
+- Separation of UI, state, and data layers
+- State-driven navigation
+- Local persistence (offline-first)
 
 ## Tech Stack
 - Kotlin
-- Jetpack Compose
+- :contentReference[oaicite:0]{index=0}
 - Android ViewModel
 - StateFlow
-- Room Database
+- :contentReference[oaicite:1]{index=1}
+
+## UX Features
+- Draft persistence across app restarts
+- Auto-save on lifecycle changes
+- Discard confirmation for unsaved changes
+- Delete confirmation + undo recovery
+- Minimal, card-based grid UI
 
 ## Status
-Prototype / early development stage.
+Prototype / active development stage
+
+Current focus:
+- Expanding media support (audio, texture)
+- Improving visual feedback for entries
+- Refining creative capture workflow
