@@ -46,11 +46,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,10 +63,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.ui.theme.UserFlowDemoTheme
@@ -88,6 +93,7 @@ fun EntryApp(
     var currentScreen by rememberSaveable { mutableStateOf("home") }
     var selectedEntry by remember { mutableStateOf<Entry?>(null) }
     var editingEntry by remember { mutableStateOf<Entry?>(null) }
+    var originalEntry by remember { mutableStateOf<Entry?>(null) }
 
     val entries by viewModel.entries.collectAsState()
     val draft by viewModel.draft.collectAsState()
@@ -98,20 +104,22 @@ fun EntryApp(
             draft = draft,
             onAddClick = {
                 editingEntry = null
+                originalEntry = null
                 selectedEntry = null
-                if (draft == null) {
-                    viewModel.createDraft()
-                }
+                viewModel.deleteDraft()
+                viewModel.createDraft()
                 currentScreen = "newEntry"
             },
             onDraftClick = {
                 editingEntry = null
+                originalEntry = null
                 selectedEntry = null
                 currentScreen = "newEntry"
             },
             onEntryClick = { entry ->
                 selectedEntry = entry
                 editingEntry = null
+                originalEntry = null
                 currentScreen = "detail"
             }
         )
@@ -119,6 +127,7 @@ fun EntryApp(
         NewEntryScreen(
             draft = draft,
             editingEntry = editingEntry,
+            originalEntry = originalEntry,
             onTitleChange = { newTitle ->
                 if (editingEntry != null) {
                     editingEntry = editingEntry!!.copy(title = newTitle)
@@ -133,6 +142,7 @@ fun EntryApp(
                     )
                     selectedEntry = editingEntry
                     editingEntry = null
+                    originalEntry = null
                 } else {
                     viewModel.publishDraft()
                 }
@@ -141,6 +151,7 @@ fun EntryApp(
             onBack = {
                 if (editingEntry != null) {
                     editingEntry = null
+                    originalEntry = null
                     currentScreen = "detail"
                 } else {
                     currentScreen = "home"
@@ -168,6 +179,9 @@ fun EntryApp(
                 } else {
                     viewModel.updateColor(color)
                 }
+            },
+            onAutoSave = { entry ->
+                viewModel.updateEntry(entry)
             }
         )
     } else if (currentScreen == "detail") {
@@ -179,10 +193,13 @@ fun EntryApp(
                     viewModel.deleteEntry(it)
                     selectedEntry = null
                     editingEntry = null
+                    originalEntry = null
                     currentScreen = "home"
                 },
                 onEdit = {
-                    editingEntry = it.copy()
+                    val entryToEdit = it.copy()
+                    editingEntry = entryToEdit
+                    originalEntry = it.copy()
                     currentScreen = "newEntry"
                 }
             )
@@ -201,6 +218,38 @@ fun HomeScreen(
     onDraftClick: () -> Unit,
     onEntryClick: (Entry) -> Unit
 ) {
+    var showDraftDialog by remember { mutableStateOf(false) }
+
+    if (showDraftDialog) {
+        AlertDialog(
+            onDismissRequest = { showDraftDialog = false },
+            title = { Text("Unfinished draft") },
+            text = { Text("You have an unfinished draft. What would you like to do?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDraftDialog = false
+                    onDraftClick()
+                }) {
+                    Text("Continue Draft")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { showDraftDialog = false }) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TextButton(onClick = {
+                        showDraftDialog = false
+                        onAddClick()
+                    }) {
+                        Text("Start New Entry")
+                    }
+                }
+            }
+        )
+    }
+
     Scaffold { padding ->
         Column(
             modifier = Modifier
@@ -224,7 +273,13 @@ fun HomeScreen(
             ) {
                 // 1. "+" Create Card (First Item)
                 item {
-                    AddCard(onAddClick = onAddClick)
+                    AddCard(onAddClick = {
+                        if (draft == null) {
+                            onAddClick()
+                        } else {
+                            showDraftDialog = true
+                        }
+                    })
                 }
 
                 // 2. Draft Card (inside grid if it exists)
@@ -396,22 +451,54 @@ fun isDraftEmpty(entry: Entry?): Boolean {
     return entry == null || (entry.title.isBlank() && entry.imageUri == null && entry.color == null)
 }
 
+/**
+ * Helper to determine if an entry has changed.
+ */
+fun hasEntryChanged(original: Entry?, current: Entry?): Boolean {
+    if (original == null || current == null) return false
+    return original.title != current.title ||
+            original.imageUri != current.imageUri ||
+            original.color != current.color
+}
+
 @Composable
 fun NewEntryScreen(
     draft: Entry?,
     editingEntry: Entry?,
+    originalEntry: Entry?,
     onTitleChange: (String) -> Unit,
     onPublish: () -> Unit,
     onBack: () -> Unit,
     onDeleteDraft: () -> Unit,
     onImageSelected: (String) -> Unit,
-    onColorSelected: (Int) -> Unit
+    onColorSelected: (Int) -> Unit,
+    onAutoSave: (Entry) -> Unit
 ) {
     val currentEntry = editingEntry ?: draft
     var title by rememberSaveable { mutableStateOf(currentEntry?.title ?: "") }
     var showError by rememberSaveable { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showEditDiscardDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Use updated states for the lifecycle observer to capture latest values
+    val currentEditingEntryState by rememberUpdatedState(editingEntry)
+    val onAutoSaveState by rememberUpdatedState(onAutoSave)
+
+    // Auto-save logic
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                currentEditingEntryState?.let { onAutoSaveState(it) }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            currentEditingEntryState?.let { onAutoSaveState(it) }
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(currentEntry) {
         // Only update local title state if currentEntry actually changes (e.g. switching between items)
@@ -423,8 +510,11 @@ fun NewEntryScreen(
 
     val handleBack = {
         if (editingEntry != null) {
-            // If editing an existing entry, just go back to detail
-            onBack()
+            if (hasEntryChanged(originalEntry, editingEntry)) {
+                showEditDiscardDialog = true
+            } else {
+                onBack()
+            }
         } else {
             // For drafts, check if it's empty
             val currentDraftState = draft?.copy(title = title)
@@ -454,6 +544,27 @@ fun NewEntryScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showEditDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDiscardDialog = false },
+            title = { Text("Discard changes?") },
+            text = { Text("You have unsaved changes. Are you sure you want to go back?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showEditDiscardDialog = false
+                    onBack()
+                }) {
+                    Text("Discard")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDiscardDialog = false }) {
                     Text("Cancel")
                 }
             }
