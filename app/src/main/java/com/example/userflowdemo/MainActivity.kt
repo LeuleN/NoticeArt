@@ -532,8 +532,8 @@ fun NewEntryScreen(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Discard draft?") },
-            text = { Text("You have unsaved changes. Are you sure you want to discard this draft?") },
+            title = { Text("Discard changes?") },
+            text = { Text("You have unsaved changes. Are you sure you want to leave?") },
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardDialog = false
@@ -554,7 +554,7 @@ fun NewEntryScreen(
         AlertDialog(
             onDismissRequest = { showEditDiscardDialog = false },
             title = { Text("Discard changes?") },
-            text = { Text("You have unsaved changes. Are you sure you want to go back?") },
+            text = { Text("You have unsaved changes. Are you sure you want to leave?") },
             confirmButton = {
                 TextButton(onClick = {
                     showEditDiscardDialog = false
@@ -714,7 +714,7 @@ fun NewEntryScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.Start
             ) {
                 Text(
                     text = "Back",
@@ -722,23 +722,10 @@ fun NewEntryScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
-
-                if (editingEntry == null) {
-                    Text(
-                        text = "Discard Draft",
-                        color = Color.Red,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.clickable { 
-                            val currentDraftState = draft?.copy(title = title)
-                            if (isDraftEmpty(currentDraftState)) {
-                                onDeleteDraft()
-                            } else {
-                                showDiscardDialog = true 
-                            }
-                        }
-                    )
-                }
             }
+            
+            // Prevent overlap with FAB
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
@@ -754,6 +741,29 @@ fun EntryDetailScreen(
         "MMM dd, yyyy hh:mm a",
         java.util.Locale.getDefault()
     ).format(java.util.Date(entry.timestamp))
+
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete entry?") },
+            text = { Text("This action cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDelete()
+                }) {
+                    Text("Delete", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -831,7 +841,7 @@ fun EntryDetailScreen(
                     text = "Delete",
                     color = Color.Red,
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.clickable { onDelete() }
+                    modifier = Modifier.clickable { showDeleteDialog = true }
                 )
             }
         }
