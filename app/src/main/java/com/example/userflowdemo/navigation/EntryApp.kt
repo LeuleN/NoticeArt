@@ -133,7 +133,7 @@ fun EntryApp(
         }
         "imageMedia" -> {
             ImageMediaScreen(
-                initialImageUri = draft?.imageUri,
+                initialImageUri = draft?.imageUris?.firstOrNull(),
                 initialColor = draft?.color,
                 onConfirm = { uri, color ->
                     viewModel.attachImage(uri)

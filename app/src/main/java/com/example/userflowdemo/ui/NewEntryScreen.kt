@@ -60,17 +60,7 @@ fun NewEntryScreen(
     val sheetState = rememberModalBottomSheetState()
 
     // Support multiple media items in UI session 
-    // (Note: Database only holds one imageUri per entry for now)
-    var mediaItems by rememberSaveable(currentEntry?.id) { 
-        mutableStateOf(listOfNotNull(currentEntry?.imageUri)) 
-    }
-    LaunchedEffect(currentEntry?.imageUri) {
-        currentEntry?.imageUri?.let { uri ->
-            if (uri !in mediaItems) {
-                mediaItems = mediaItems + uri
-            }
-        }
-    }
+    val mediaItems = currentEntry?.imageUris ?: emptyList()
     
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -270,8 +260,7 @@ fun NewEntryScreen(
                     Text("Add Media", style = MaterialTheme.typography.labelLarge)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Media list using standard Column/Row instead of experimental FlowRow 
-                    // to resolve stabilization binary mismatch issues.
+                    // Media grid: First item is always "+"
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -320,7 +309,11 @@ fun NewEntryScreen(
                                                     modifier = Modifier.fillMaxSize()
                                                 )
 
-                                                if (uri == currentEntry?.imageUri) {
+                                                // Show active color dot if applicable
+                                                // Note: Logic for which image gets the dot is preserved 
+                                                // from previous single-image implementation (comparing against a single URI)
+                                                // If database logic changes, this can be updated.
+                                                if (uri == currentEntry?.imageUris?.firstOrNull()) {
                                                     currentEntry.color?.let { colorInt ->
                                                         Box(
                                                             modifier = Modifier

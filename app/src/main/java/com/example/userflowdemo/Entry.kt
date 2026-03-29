@@ -10,7 +10,7 @@ data class Entry(
     val title: String,
     val timestamp: Long = System.currentTimeMillis(),
     val isDraft: Boolean = false,
-    val imageUri: String? = null,
+    val imageUris: List<String> = emptyList(), // Changed from imageUri: String?
     val color: Int? = null,
     val observation: String? = null
 )

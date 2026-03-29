@@ -42,8 +42,9 @@ fun ImageMediaScreen(
     onConfirm: (String, Int?) -> Unit,
     onBack: () -> Unit
 ) {
-    var imageUri by rememberSaveable { mutableStateOf(initialImageUri) }
-    var selectedColor by rememberSaveable { mutableStateOf(initialColor) }
+    // Always start with null/empty state to ensure a "fresh" start when adding new media
+    var imageUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedColor by rememberSaveable { mutableStateOf<Int?>(null) }
     val context = LocalContext.current
 
     val imagePicker = rememberLauncherForActivityResult(
@@ -59,14 +60,25 @@ fun ImageMediaScreen(
         }
     }
 
-    BackHandler(onBack = onBack)
+    // Clear state on exit to ensure next visit starts blank
+    val handleExit = {
+        imageUri = null
+        selectedColor = null
+    }
+
+    val handleBack = {
+        handleExit()
+        onBack()
+    }
+
+    BackHandler(onBack = handleBack)
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Image Media") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = handleBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -185,7 +197,12 @@ fun ImageMediaScreen(
 
                 IconButton(
                     onClick = {
-                        imageUri?.let { onConfirm(it, selectedColor) }
+                        val uri = imageUri
+                        val color = selectedColor
+                        if (uri != null) {
+                            handleExit()
+                            onConfirm(uri, color)
+                        }
                     },
                     enabled = imageUri != null,
                     modifier = Modifier

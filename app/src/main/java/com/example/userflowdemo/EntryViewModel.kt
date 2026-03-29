@@ -39,13 +39,13 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createDraft(title: String = "", observation: String? = null, imageUri: String? = null, color: Int? = null) {
+    fun createDraft(title: String = "", observation: String? = null, imageUris: List<String> = emptyList(), color: Int? = null) {
         viewModelScope.launch {
             deleteDraftInternal()
             val draftEntry = Entry(
                 title = title,
                 observation = observation,
-                imageUri = imageUri,
+                imageUris = imageUris,
                 color = color,
                 isDraft = true
             )
@@ -96,7 +96,9 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     fun attachImage(uri: String) {
         viewModelScope.launch {
             _draft.value?.let {
-                val updated = it.copy(imageUri = uri, color = null)
+                // Append the new URI to the list, instead of replacing it
+                val updatedUris = it.imageUris + uri
+                val updated = it.copy(imageUris = updatedUris, color = null)
                 repository.update(updated)
                 _draft.value = updated
             }

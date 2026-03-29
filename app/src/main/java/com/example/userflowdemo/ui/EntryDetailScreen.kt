@@ -123,7 +123,7 @@ fun EntryDetailScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                entry.imageUri?.let { uri ->
+                entry.imageUris.forEach { uri ->
                     Spacer(modifier = Modifier.height(24.dp))
                     Card(
                         shape = RoundedCornerShape(16.dp),
