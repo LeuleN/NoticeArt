@@ -18,6 +18,7 @@ import com.example.userflowdemo.ui.EntryDetailScreen
 import com.example.userflowdemo.ui.HomeScreen
 import com.example.userflowdemo.ui.ImageMediaScreen
 import com.example.userflowdemo.ui.NewEntryScreen
+import com.example.userflowdemo.utils.isDraftEmpty
 
 @Composable
 fun EntryApp(
@@ -112,7 +113,8 @@ fun EntryApp(
                     // Capture draft for UNDO before discarding
                     val draftToRestore = draft
                     viewModel.discardDraft()
-                    if (draftToRestore != null && !isEditing) {
+                    // ✅ FIX: Only show UNDO snackbar if the draft was NOT empty
+                    if (draftToRestore != null && !isEditing && !isDraftEmpty(draftToRestore)) {
                         recentlyDiscardedDraft = draftToRestore
                     }
                     currentScreen = "home"

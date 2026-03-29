@@ -58,6 +58,19 @@ fun NewEntryScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
+
+    // Support multiple media items in UI session 
+    // (Note: Database only holds one imageUri per entry for now)
+    var mediaItems by rememberSaveable(currentEntry?.id) { 
+        mutableStateOf(listOfNotNull(currentEntry?.imageUri)) 
+    }
+    LaunchedEffect(currentEntry?.imageUri) {
+        currentEntry?.imageUri?.let { uri ->
+            if (uri !in mediaItems) {
+                mediaItems = mediaItems + uri
+            }
+        }
+    }
     
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -257,47 +270,77 @@ fun NewEntryScreen(
                     Text("Add Media", style = MaterialTheme.typography.labelLarge)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    if (currentEntry?.imageUri == null) {
-                        Box(
-                            modifier = Modifier
-                                .size(120.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
-                                .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-                                .clickable { showBottomSheet = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = "Add Media",
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                            )
-                        }
-                    } else {
-                        Row(verticalAlignment = Alignment.Top) {
-                            Box(
-                                modifier = Modifier
-                                    .size(120.dp)
-                                    .clip(RoundedCornerShape(16.dp))
+                    // Media list using standard Column/Row instead of experimental FlowRow 
+                    // to resolve stabilization binary mismatch issues.
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        val items = listOf("Add") + mediaItems
+                        items.chunked(2).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Image(
-                                    painter = rememberAsyncImagePainter(currentEntry.imageUri),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                            
-                            currentEntry.color?.let {
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(it))
-                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                )
+                                rowItems.forEach { item ->
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .aspectRatio(1f)
+                                    ) {
+                                        if (item == "Add") {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .clip(RoundedCornerShape(16.dp))
+                                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                                                    .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                                                    .clickable { showBottomSheet = true },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Add,
+                                                    contentDescription = "Add Media",
+                                                    modifier = Modifier.size(48.dp),
+                                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                                )
+                                            }
+                                        } else {
+                                            val uri = item
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .clip(RoundedCornerShape(16.dp))
+                                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            ) {
+                                                Image(
+                                                    painter = rememberAsyncImagePainter(uri),
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+
+                                                if (uri == currentEntry?.imageUri) {
+                                                    currentEntry.color?.let { colorInt ->
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .padding(8.dp)
+                                                                .size(18.dp)
+                                                                .align(Alignment.TopEnd)
+                                                                .clip(CircleShape)
+                                                                .background(Color(colorInt))
+                                                                .border(1.5.dp, Color.White, CircleShape)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                // Fill the row if it only has one item
+                                if (rowItems.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
                             }
                         }
                     }
