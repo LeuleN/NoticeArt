@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -169,6 +170,14 @@ fun NewEntryScreen(
                         if (isEditing) "Edit Entry" else "New Entry", 
                         fontWeight = FontWeight.Bold 
                     ) 
+                },
+                navigationIcon = {
+                    IconButton(onClick = { handleBack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
                 }
             )
         },
