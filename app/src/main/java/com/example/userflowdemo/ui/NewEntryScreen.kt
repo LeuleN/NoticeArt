@@ -39,6 +39,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +66,7 @@ import com.example.userflowdemo.Entry
 import com.example.userflowdemo.components.DraggableScrollbar
 import com.example.userflowdemo.utils.hasEntryChanged
 import com.example.userflowdemo.utils.isDraftEmpty
+import kotlin.math.max
 
 @Composable
 fun NewEntryScreen(
@@ -214,7 +217,7 @@ fun NewEntryScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // 1. Scrollable Content Area with Draggable Scrollbar
+            // 1. Scrollable Content Area with Scrollbar
             val mainScrollState = rememberScrollState()
             Box(modifier = Modifier.weight(1f)) {
                 Column(
@@ -302,9 +305,26 @@ fun NewEntryScreen(
                                         detectTapGestures { offset ->
                                             bitmap?.let { b ->
                                                 try {
-                                                    val x = (offset.x / size.width * b.width).toInt().coerceIn(0, b.width - 1)
-                                                    val y = (offset.y / size.height * b.height).toInt().coerceIn(0, b.height - 1)
-                                                    val pixel = b.getPixel(x, y)
+                                                    // 1. Get View and Bitmap dimensions
+                                                    val viewWidth = size.width.toFloat()
+                                                    val viewHeight = size.height.toFloat()
+                                                    val bmpWidth = b.width.toFloat()
+                                                    val bmpHeight = b.height.toFloat()
+
+                                                    // 2. Calculate Scale (ContentScale.Crop logic)
+                                                    val scale = max(viewWidth / bmpWidth, viewHeight / bmpHeight)
+
+                                                    // 3. Calculate cropping offsets
+                                                    val scaledWidth = bmpWidth * scale
+                                                    val scaledHeight = bmpHeight * scale
+                                                    val offsetX = (scaledWidth - viewWidth) / 2f
+                                                    val offsetY = (scaledHeight - viewHeight) / 2f
+
+                                                    // 4. Map tap coordinate to original bitmap
+                                                    val bitmapX = ((offset.x + offsetX) / scale).toInt().coerceIn(0, b.width - 1)
+                                                    val bitmapY = ((offset.y + offsetY) / scale).toInt().coerceIn(0, b.height - 1)
+
+                                                    val pixel = b.getPixel(bitmapX, bitmapY)
                                                     onColorSelected(pixel)
                                                 } catch (e: Exception) {
                                                 }
@@ -349,7 +369,7 @@ fun NewEntryScreen(
                             .clip(RoundedCornerShape(8.dp))
                             .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
                     ) {
-                        OutlinedTextField(
+                        TextField(
                             value = observation,
                             onValueChange = {
                                 observation = it
@@ -358,9 +378,14 @@ fun NewEntryScreen(
                             placeholder = { Text("I notice...") },
                             modifier = Modifier
                                 .fillMaxSize()
-                                .verticalScroll(obsScrollState)
-                                .padding(end = 12.dp),
-                            minLines = 3
+                                .verticalScroll(obsScrollState),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent,
+                            )
                         )
                         
                         DraggableScrollbar(
