@@ -11,5 +11,6 @@ data class Entry(
     val timestamp: Long = System.currentTimeMillis(),
     val isDraft: Boolean = false,
     val imageUri: String? = null,
-    val color: Int? = null
+    val color: Int? = null,
+    val observation: String? = null
 )

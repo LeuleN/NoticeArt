@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -20,12 +21,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -56,6 +61,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.Entry
+import com.example.userflowdemo.components.DraggableScrollbar
 import com.example.userflowdemo.utils.hasEntryChanged
 import com.example.userflowdemo.utils.isDraftEmpty
 
@@ -66,6 +72,7 @@ fun NewEntryScreen(
     originalEntry: Entry?,
     snackbarHostState: SnackbarHostState,
     onTitleChange: (String) -> Unit,
+    onObservationChange: (String) -> Unit,
     onPublish: () -> Unit,
     onBack: () -> Unit,
     onDeleteDraft: () -> Unit,
@@ -75,6 +82,7 @@ fun NewEntryScreen(
 ) {
     val currentEntry = editingEntry ?: draft
     var title by rememberSaveable { mutableStateOf(currentEntry?.title ?: "") }
+    var observation by rememberSaveable { mutableStateOf(currentEntry?.observation ?: "") }
     var showError by rememberSaveable { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEditDiscardDialog by remember { mutableStateOf(false) }
@@ -100,23 +108,25 @@ fun NewEntryScreen(
     }
 
     LaunchedEffect(currentEntry) {
-        // Only update local title state if currentEntry actually changes (e.g. switching between items)
-        // Keystrokes update currentEntry via onTitleChange, but we keep the local state for responsiveness.
         if (currentEntry?.title != title && title.isEmpty()) {
             title = currentEntry?.title ?: ""
+        }
+        if (currentEntry?.observation != observation && observation.isEmpty()) {
+            observation = currentEntry?.observation ?: ""
         }
     }
 
     val handleBack = {
         if (editingEntry != null) {
-            if (hasEntryChanged(originalEntry, editingEntry)) {
+            val updatedEditingEntry = editingEntry.copy(title = title, observation = observation)
+            if (hasEntryChanged(originalEntry, updatedEditingEntry)) {
                 showEditDiscardDialog = true
             } else {
                 onBack()
             }
         } else {
             // For drafts, check if it's empty
-            val currentDraftState = draft?.copy(title = title)
+            val currentDraftState = draft?.copy(title = title, observation = observation)
             if (isDraftEmpty(currentDraftState)) {
                 onDeleteDraft() // Automatically delete and go home
             } else {
@@ -200,120 +210,183 @@ fun NewEntryScreen(
     ) { padding ->
         Column(
             modifier = Modifier
+                .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            OutlinedTextField(
-                value = title,
-                onValueChange = {
-                    title = it
-                    showError = false
-                    onTitleChange(it)
-                },
-                label = {
-                    Text(if (editingEntry != null) "Edit Title" else "Title")
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            if (showError) {
-                Text(
-                    text = "Title required",
-                    color = Color.Red,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    onClick = { imagePicker.launch(arrayOf("image/*")) },
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer
+            // 1. Scrollable Content Area with Draggable Scrollbar
+            val mainScrollState = rememberScrollState()
+            Box(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(mainScrollState)
+                        .padding(end = 12.dp) // Space for draggable thumb
                 ) {
-                    Text(
-                        text = "Add Image",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.labelLarge
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = {
+                            title = it
+                            showError = false
+                            onTitleChange(it)
+                        },
+                        label = {
+                            Text(if (editingEntry != null) "Edit Title" else "Title")
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
-                }
 
-                currentEntry?.color?.let {
-                    Spacer(modifier = Modifier.size(16.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(Color(it))
-                    )
-                }
-            }
-
-            currentEntry?.imageUri?.let { uri ->
-                Spacer(modifier = Modifier.height(16.dp))
-
-                val bitmap = remember(uri) {
-                    try {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(uri))
-                            ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-                                decoder.isMutableRequired = true
-                            }
-                        } else {
-                            context.contentResolver.openInputStream(Uri.parse(uri))?.use {
-                                BitmapFactory.decodeStream(it)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        null
+                    if (showError) {
+                        Text(
+                            text = "Title required",
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
-                }
 
-                Box(modifier = Modifier.height(200.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp))) {
-                    Image(
-                        painter = rememberAsyncImagePainter(uri),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(uri) {
-                                detectTapGestures { offset ->
-                                    bitmap?.let { b ->
-                                        try {
-                                            val x = (offset.x / size.width * b.width).toInt().coerceIn(0, b.width - 1)
-                                            val y = (offset.y / size.height * b.height).toInt().coerceIn(0, b.height - 1)
-                                            val pixel = b.getPixel(x, y)
-                                            onColorSelected(pixel)
-                                        } catch (e: Exception) {
-                                        }
-                                    }
-                                }
-                            }
-                    )
-                    
-                    if (bitmap != null) {
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
-                            color = Color.Black.copy(alpha = 0.6f),
-                            shape = RoundedCornerShape(4.dp)
+                            onClick = { imagePicker.launch(arrayOf("image/*")) },
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             Text(
-                                "Tap image to pick color",
-                                modifier = Modifier.padding(6.dp),
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall
+                                text = "Add Image",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+
+                        currentEntry?.color?.let {
+                            Spacer(modifier = Modifier.size(16.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(it))
                             )
                         }
                     }
+
+                    currentEntry?.imageUri?.let { uri ->
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val bitmap = remember(uri) {
+                            try {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                    val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(uri))
+                                    ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                                        decoder.isMutableRequired = true
+                                    }
+                                } else {
+                                    context.contentResolver.openInputStream(Uri.parse(uri))?.use {
+                                        BitmapFactory.decodeStream(it)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+
+                        Box(modifier = Modifier.height(200.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp))) {
+                            Image(
+                                painter = rememberAsyncImagePainter(uri),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(uri) {
+                                        detectTapGestures { offset ->
+                                            bitmap?.let { b ->
+                                                try {
+                                                    val x = (offset.x / size.width * b.width).toInt().coerceIn(0, b.width - 1)
+                                                    val y = (offset.y / size.height * b.height).toInt().coerceIn(0, b.height - 1)
+                                                    val pixel = b.getPixel(x, y)
+                                                    onColorSelected(pixel)
+                                                } catch (e: Exception) {
+                                                }
+                                            }
+                                        }
+                                    }
+                            )
+                            
+                            if (bitmap != null) {
+                                Surface(
+                                    modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
+                                    color = Color.Black.copy(alpha = 0.6f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        "Tap image to pick color",
+                                        modifier = Modifier.padding(6.dp),
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Observations",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // 2. Internally Scrollable Observation Box with Draggable Scrollbar
+                    val obsScrollState = rememberScrollState()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp, max = 200.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                    ) {
+                        OutlinedTextField(
+                            value = observation,
+                            onValueChange = {
+                                observation = it
+                                onObservationChange(it)
+                            },
+                            placeholder = { Text("I notice...") },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(obsScrollState)
+                                .padding(end = 12.dp),
+                            minLines = 3
+                        )
+                        
+                        DraggableScrollbar(
+                            scrollState = obsScrollState,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 2.dp, top = 4.dp, bottom = 4.dp),
+                            thumbHeight = 40.dp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
+                
+                DraggableScrollbar(
+                    scrollState = mainScrollState,
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    thumbHeight = 80.dp
+                )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
+            // 3. Fixed Bottom Action Area
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
                 horizontalArrangement = Arrangement.Start
             ) {
                 Text(
@@ -324,8 +397,7 @@ fun NewEntryScreen(
                 )
             }
             
-            // Prevent overlap with FAB
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

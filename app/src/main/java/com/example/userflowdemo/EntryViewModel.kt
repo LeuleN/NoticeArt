@@ -31,10 +31,11 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createDraft(title: String = "", imageUri: String? = null, color: Int? = null) {
+    fun createDraft(title: String = "", observation: String? = null, imageUri: String? = null, color: Int? = null) {
         viewModelScope.launch {
             val draftEntry = Entry(
                 title = title,
+                observation = observation,
                 imageUri = imageUri,
                 color = color,
                 isDraft = true
@@ -48,6 +49,16 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _draft.value?.let {
                 val updated = it.copy(title = title)
+                repository.update(updated)
+                _draft.value = updated
+            }
+        }
+    }
+
+    fun updateObservation(observation: String) {
+        viewModelScope.launch {
+            _draft.value?.let {
+                val updated = it.copy(observation = observation)
                 repository.update(updated)
                 _draft.value = updated
             }

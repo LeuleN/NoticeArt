@@ -1,5 +1,6 @@
 package com.example.userflowdemo.navigation
 
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
@@ -36,7 +37,8 @@ fun EntryApp(
         recentlyDeletedEntry?.let { entry ->
             val result = snackbarHostState.showSnackbar(
                 message = "Entry deleted",
-                actionLabel = "UNDO"
+                actionLabel = "UNDO",
+                duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.insertEntry(entry)
@@ -82,6 +84,13 @@ fun EntryApp(
                     editingEntry = editingEntry!!.copy(title = newTitle)
                 } else {
                     viewModel.updateDraft(newTitle)
+                }
+            },
+            onObservationChange = { newObservation ->
+                if (editingEntry != null) {
+                    editingEntry = editingEntry!!.copy(observation = newObservation)
+                } else {
+                    viewModel.updateObservation(newObservation)
                 }
             },
             onPublish = {
