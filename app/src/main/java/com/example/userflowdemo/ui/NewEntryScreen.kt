@@ -45,7 +45,7 @@ fun NewEntryScreen(
     onTitleChange: (String) -> Unit,
     onObservationChange: (String) -> Unit,
     onPublish: () -> Unit,
-    onSaveAndViewDetail: () -> Unit, // ✅ NEW: Save navigation path for editing
+    onSaveAndViewDetail: () -> Unit, // NEW: Save navigation path for editing
     onBackToHome: () -> Unit,   // REQUIRED: Home navigation path
     onBackToDetail: () -> Unit, // REQUIRED: Detail navigation path
     onAutoSave: () -> Unit, // REQUIRED: For lifecycle auto-save
@@ -61,7 +61,7 @@ fun NewEntryScreen(
     
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // ✅ ISSUE 1 FIX (Lifecycle): Trigger onAutoSave on background/kill
+    // ISSUE 1 FIX (Lifecycle): Trigger onAutoSave on background/kill
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
