@@ -305,16 +305,22 @@ fun NewEntryScreen(
                                                     modifier = Modifier.fillMaxSize()
                                                 )
 
-                                                mediaItem.color?.let { colorInt ->
-                                                    Box(
+                                                if (mediaItem.colors.isNotEmpty()) {
+                                                    Row(
                                                         modifier = Modifier
-                                                            .padding(8.dp)
-                                                            .size(18.dp)
-                                                            .align(Alignment.TopEnd)
-                                                            .clip(CircleShape)
-                                                            .background(Color(colorInt))
-                                                            .border(1.5.dp, Color.White, CircleShape)
-                                                    )
+                                                            .fillMaxWidth()
+                                                            .height(30.dp)
+                                                            .align(Alignment.BottomCenter)
+                                                    ) {
+                                                        mediaItem.colors.take(3).forEach { colorInt ->
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .weight(1f)
+                                                                    .fillMaxHeight()
+                                                                    .background(Color(colorInt))
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -360,34 +366,23 @@ fun NewEntryScreen(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
                                 focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
                             )
                         )
+                        DraggableScrollbar(
+                            scrollState = obsScrollState,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 2.dp, top = 4.dp, bottom = 4.dp),
+                            thumbHeight = 40.dp
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
-                
                 DraggableScrollbar(
                     scrollState = mainScrollState,
                     modifier = Modifier.align(Alignment.CenterEnd),
                     thumbHeight = 80.dp
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                Text(
-                    text = "Back",
-                    modifier = Modifier.clickable { handleBack() },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
                 )
             }
         }

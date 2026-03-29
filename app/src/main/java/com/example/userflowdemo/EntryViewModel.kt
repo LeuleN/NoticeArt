@@ -85,11 +85,11 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addOrUpdateMediaItem(uri: String, color: Int?, index: Int? = null) {
+    fun addOrUpdateMediaItem(uri: String, colors: List<Int>, index: Int? = null) {
         viewModelScope.launch {
             _draft.value?.let { draft ->
                 val updatedMedia = draft.media.toMutableList()
-                val newItem = MediaItem(imageUri = uri, color = color)
+                val newItem = MediaItem(imageUri = uri, colors = colors)
                 
                 if (index != null && index in updatedMedia.indices) {
                     updatedMedia[index] = newItem

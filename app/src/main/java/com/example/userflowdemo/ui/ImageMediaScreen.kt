@@ -1,17 +1,13 @@
 package com.example.userflowdemo.ui
 
 import android.content.Intent
-import android.graphics.BitmapFactory
-import android.graphics.ImageDecoder
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,25 +22,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
-import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageMediaScreen(
     initialImageUri: String?,
-    initialColor: Int?,
-    onConfirm: (String, Int?) -> Unit,
+    onConfirm: (String) -> Unit,
+    onColorCapture: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    // Always start with null/empty state to ensure a "fresh" start when adding new media
-    var imageUri by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedColor by rememberSaveable { mutableStateOf<Int?>(null) }
+    var imageUri by rememberSaveable { mutableStateOf(initialImageUri) }
     val context = LocalContext.current
 
     val imagePicker = rememberLauncherForActivityResult(
@@ -56,18 +47,10 @@ fun ImageMediaScreen(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
             imageUri = it.toString()
-            selectedColor = null 
         }
     }
 
-    // Clear state on exit to ensure next visit starts blank
-    val handleExit = {
-        imageUri = null
-        selectedColor = null
-    }
-
     val handleBack = {
-        handleExit()
         onBack()
     }
 
@@ -101,55 +84,11 @@ fun ImageMediaScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUri != null) {
-                    val uri = imageUri!!
-                    val bitmap = remember(uri) {
-                        try {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(uri))
-                                ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-                                    decoder.isMutableRequired = true
-                                }
-                            } else {
-                                context.contentResolver.openInputStream(Uri.parse(uri))?.use {
-                                    BitmapFactory.decodeStream(it)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-
                     Image(
-                        painter = rememberAsyncImagePainter(uri),
+                        painter = rememberAsyncImagePainter(imageUri),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(uri) {
-                                detectTapGestures { offset ->
-                                    bitmap?.let { b ->
-                                        try {
-                                            val viewWidth = size.width.toFloat()
-                                            val viewHeight = size.height.toFloat()
-                                            val bmpWidth = b.width.toFloat()
-                                            val bmpHeight = b.height.toFloat()
-
-                                            val scale = max(viewWidth / bmpWidth, viewHeight / bmpHeight)
-
-                                            val scaledWidth = bmpWidth * scale
-                                            val scaledHeight = bmpHeight * scale
-                                            val offsetX = (scaledWidth - viewWidth) / 2f
-                                            val offsetY = (scaledHeight - viewHeight) / 2f
-
-                                            val bitmapX = ((offset.x + offsetX) / scale).toInt().coerceIn(0, b.width - 1)
-                                            val bitmapY = ((offset.y + offsetY) / scale).toInt().coerceIn(0, b.height - 1)
-
-                                            val pixel = b.getPixel(bitmapX, bitmapY)
-                                            selectedColor = pixel
-                                        } catch (e: Exception) {}
-                                    }
-                                }
-                            }
+                        modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Text("No image selected", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -174,35 +113,24 @@ fun ImageMediaScreen(
                     Icon(Icons.Filled.Image, contentDescription = "Gallery", modifier = Modifier.size(32.dp))
                 }
 
-                Box(contentAlignment = Alignment.Center) {
-                    IconButton(
-                        onClick = { /* visual only */ },
-                        modifier = Modifier
-                            .size(56.dp)
-                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    ) {
-                        Icon(Icons.Outlined.Colorize, contentDescription = "Color Picker", modifier = Modifier.size(32.dp))
-                    }
-                    if (selectedColor != null) {
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .align(Alignment.TopEnd)
-                                .clip(CircleShape)
-                                .background(Color(selectedColor!!))
-                                .border(1.dp, Color.White, CircleShape)
-                        )
-                    }
+                IconButton(
+                    onClick = { imageUri?.let { onColorCapture(it) } },
+                    enabled = imageUri != null,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .border(1.dp, if (imageUri != null) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                ) {
+                    Icon(
+                        Icons.Outlined.Colorize, 
+                        contentDescription = "Color Picker", 
+                        modifier = Modifier.size(32.dp),
+                        tint = if (imageUri != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    )
                 }
 
                 IconButton(
                     onClick = {
-                        val uri = imageUri
-                        val color = selectedColor
-                        if (uri != null) {
-                            handleExit()
-                            onConfirm(uri, color)
-                        }
+                        imageUri?.let { onConfirm(it) }
                     },
                     enabled = imageUri != null,
                     modifier = Modifier

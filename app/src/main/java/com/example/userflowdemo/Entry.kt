@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 data class MediaItem(
     val imageUri: String,
-    val color: Int? = null
+    val colors: List<Int> = emptyList()
 )
 
 @Entity

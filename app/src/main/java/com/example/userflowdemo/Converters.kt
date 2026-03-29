@@ -13,10 +13,17 @@ class Converters {
             val list = mutableListOf<MediaItem>()
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
+                val colorsArray = obj.optJSONArray("colors")
+                val colors = mutableListOf<Int>()
+                if (colorsArray != null) {
+                    for (j in 0 until colorsArray.length()) {
+                        colors.add(colorsArray.getInt(j))
+                    }
+                }
                 list.add(
                     MediaItem(
                         imageUri = obj.getString("uri"),
-                        color = if (obj.has("color")) obj.getInt("color") else null
+                        colors = colors
                     )
                 )
             }
@@ -32,7 +39,9 @@ class Converters {
         list.forEach { item ->
             val obj = JSONObject()
             obj.put("uri", item.imageUri)
-            item.color?.let { obj.put("color", it) }
+            val colorsArray = JSONArray()
+            item.colors.forEach { colorsArray.put(it) }
+            obj.put("colors", colorsArray)
             jsonArray.put(obj)
         }
         return jsonArray.toString()

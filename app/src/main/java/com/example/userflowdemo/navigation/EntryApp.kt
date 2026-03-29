@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.userflowdemo.Entry
 import com.example.userflowdemo.EntryViewModel
+import com.example.userflowdemo.ui.ColorCaptureScreen
 import com.example.userflowdemo.ui.EntryDetailScreen
 import com.example.userflowdemo.ui.HomeScreen
 import com.example.userflowdemo.ui.ImageMediaScreen
@@ -28,6 +29,7 @@ fun EntryApp(
     var selectedEntry by remember { mutableStateOf<Entry?>(null) }
     var isEditing by rememberSaveable { mutableStateOf(false) }
     var editingMediaIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+    var colorCaptureUri by rememberSaveable { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var recentlyDeletedEntry by remember { mutableStateOf<Entry?>(null) }
@@ -137,17 +139,41 @@ fun EntryApp(
             }
             ImageMediaScreen(
                 initialImageUri = mediaItem?.imageUri,
-                initialColor = mediaItem?.color,
-                onConfirm = { uri, color ->
-                    viewModel.addOrUpdateMediaItem(uri, color, editingMediaIndex?.takeIf { it >= 0 })
+                onConfirm = { uri ->
+                    viewModel.addOrUpdateMediaItem(uri, mediaItem?.colors ?: emptyList(), editingMediaIndex?.takeIf { it >= 0 })
                     editingMediaIndex = null
                     currentScreen = "newEntry"
+                },
+                onColorCapture = { uri ->
+                    colorCaptureUri = uri
+                    currentScreen = "colorCapture"
                 },
                 onBack = {
                     editingMediaIndex = null
                     currentScreen = "newEntry"
                 }
             )
+        }
+        "colorCapture" -> {
+            val mediaItem = editingMediaIndex?.let { index ->
+                if (index >= 0) draft?.media?.getOrNull(index) else null
+            }
+            colorCaptureUri?.let { uri ->
+                ColorCaptureScreen(
+                    imageUri = uri,
+                    initialColors = mediaItem?.colors ?: emptyList(),
+                    onConfirm = { colors ->
+                        viewModel.addOrUpdateMediaItem(uri, colors, editingMediaIndex?.takeIf { it >= 0 })
+                        colorCaptureUri = null
+                        editingMediaIndex = null
+                        currentScreen = "newEntry"
+                    },
+                    onBack = {
+                        colorCaptureUri = null
+                        currentScreen = "imageMedia"
+                    }
+                )
+            }
         }
         "detail" -> {
             selectedEntry?.let { entry ->

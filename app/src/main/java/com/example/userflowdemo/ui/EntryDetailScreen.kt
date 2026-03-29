@@ -126,7 +126,7 @@ fun EntryDetailScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
-                        mediaItem.color?.let { colorInt ->
+                        mediaItem.colors.firstOrNull()?.let { colorInt ->
                             Box(
                                 modifier = Modifier
                                     .padding(12.dp)
