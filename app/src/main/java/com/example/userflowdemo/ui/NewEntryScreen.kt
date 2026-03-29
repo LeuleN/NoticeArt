@@ -32,17 +32,23 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.Entry
 import com.example.userflowdemo.components.DraggableScrollbar
+import com.example.userflowdemo.utils.hasEntryChanged
+import com.example.userflowdemo.utils.isDraftEmpty
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewEntryScreen(
     draft: Entry?,
-    isEditing: Boolean, // New parameter to distinguish
+    originalEntry: Entry?, // REQUIRED: To detect changes in edit mode
+    isEditing: Boolean, 
     snackbarHostState: SnackbarHostState,
     onTitleChange: (String) -> Unit,
     onObservationChange: (String) -> Unit,
     onPublish: () -> Unit,
-    onBack: () -> Unit, // This will now be "Discard" if changes made
+    onSaveAndViewDetail: () -> Unit, // ✅ NEW: Save navigation path for editing
+    onBackToHome: () -> Unit,   // REQUIRED: Home navigation path
+    onBackToDetail: () -> Unit, // REQUIRED: Detail navigation path
+    onAutoSave: () -> Unit, // REQUIRED: For lifecycle auto-save
     onNavigateToImageMedia: () -> Unit
 ) {
     val currentEntry = draft
@@ -55,16 +61,34 @@ fun NewEntryScreen(
     
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Detect if changes were made compared to the initial draft state passed in
-    val hasChanges = remember(currentEntry, title, observation) {
-        currentEntry != null && (title != currentEntry.title || observation != (currentEntry.observation ?: ""))
+    // ✅ ISSUE 1 FIX (Lifecycle): Trigger onAutoSave on background/kill
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                onAutoSave()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val hasChanges = remember(draft, originalEntry, isEditing, title, observation) {
+        val currentDraftWithUIFields = draft?.copy(
+            title = title,
+            observation = observation.ifBlank { null }
+        )
+        if (isEditing) {
+            hasEntryChanged(originalEntry, currentDraftWithUIFields)
+        } else {
+            !isDraftEmpty(currentDraftWithUIFields)
+        }
     }
 
     val handleBack = {
         if (hasChanges) {
             showDiscardDialog = true
         } else {
-            onBack()
+            if (isEditing) onBackToDetail() else onBackToHome()
         }
     }
 
@@ -78,7 +102,7 @@ fun NewEntryScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardDialog = false
-                    onBack()
+                    if (isEditing) onBackToDetail() else onBackToHome()
                 }) {
                     Text("Discard", color = MaterialTheme.colorScheme.error)
                 }
@@ -139,7 +163,6 @@ fun NewEntryScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                // ✅ REQUIRED UX FIX: Dynamic Title
                 title = { 
                     Text(
                         if (isEditing) "Edit Entry" else "New Entry", 
@@ -155,7 +178,12 @@ fun NewEntryScreen(
                     if (title.isBlank()) {
                         showError = true
                     } else {
-                        onPublish()
+                        // ✅ ISSUE 2 FIX: Navigate correctly on save
+                        if (isEditing) {
+                            onSaveAndViewDetail()
+                        } else {
+                            onPublish()
+                        }
                     }
                 }
             ) {
@@ -177,7 +205,6 @@ fun NewEntryScreen(
                         .verticalScroll(mainScrollState)
                         .padding(end = 12.dp)
                 ) {
-                    // Visual Indicator for editing
                     if (isEditing) {
                         Text(
                             text = "Editing existing entry",
@@ -196,7 +223,6 @@ fun NewEntryScreen(
                             onTitleChange(it)
                         },
                         label = {
-                            // ✅ Prefill label change
                             Text(if (isEditing) "Edit Title" else "Title")
                         },
                         placeholder = {
@@ -313,8 +339,6 @@ fun NewEntryScreen(
                                 disabledIndicatorColor = Color.Transparent,
                             )
                         )
-                        
-                        // Scrollbar component integrated
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))

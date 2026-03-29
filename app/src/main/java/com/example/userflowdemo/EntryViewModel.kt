@@ -11,7 +11,6 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     private val database = EntryDatabase.getDatabase(application)
     private val repository = EntryRepository(database.entryDao())
 
-    // 5. ViewModel RULE: Separate state. Home screen filters out drafts.
     val entries: StateFlow<List<Entry>> =
         repository.allEntries
             .map { list -> list.filter { !it.isDraft } }
@@ -24,8 +23,11 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     private val _draft = MutableStateFlow<Entry?>(null)
     val draft: StateFlow<Entry?> = _draft
 
-    // Track original entry being edited for isolated saving
+    // 3. ViewModel MUST distinguish modes
     private var editingOriginalId: Long? = null
+    private var originalEntrySnapshot: Entry? = null // For isolated revert on discard
+
+    val isEditing: Boolean get() = editingOriginalId != null
 
     init {
         loadDraft()
@@ -39,7 +41,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun createDraft(title: String = "", observation: String? = null, imageUri: String? = null, color: Int? = null) {
         viewModelScope.launch {
-            deleteDraftInternal() // Ensure clean start
+            deleteDraftInternal()
             val draftEntry = Entry(
                 title = title,
                 observation = observation,
@@ -50,22 +52,27 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             repository.insert(draftEntry)
             loadDraft()
             editingOriginalId = null
+            originalEntrySnapshot = null
         }
     }
 
+    // 1. Editing MUST preserve original ID
     fun startEditing(entry: Entry) {
         viewModelScope.launch {
+            // 6. CLEANUP: Ensure no other draft exists
             deleteDraftInternal()
-            // 1. NEVER mutate originalEntry. Use an ISOLATED COPY.
-            // Create a temporary draft entry in DB with a NEW ID.
-            val editingDraft = entry.copy(id = 0, isDraft = true)
-            repository.insert(editingDraft)
-            loadDraft()
+            
+            // Mark the ORIGINAL entry as a draft to isolate it from the main list
+            val editingEntry = entry.copy(isDraft = true)
+            repository.update(editingEntry)
+            
+            _draft.value = editingEntry
             editingOriginalId = entry.id
+            // Take a snapshot of the entry as it was before editing for discard/revert
+            originalEntrySnapshot = entry.copy(isDraft = false)
         }
     }
 
-    // Isolated updates to the current draft/editing state
     fun updateDraft(title: String) {
         viewModelScope.launch {
             _draft.value?.let {
@@ -106,40 +113,55 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // 4. On Save: Update real entry from draft or publish new
-    fun publishDraft() {
+    // ✅ FIXED: Update timestamp during auto-save for edits
+    fun autoSave() {
         viewModelScope.launch {
             _draft.value?.let { currentDraft ->
-                if (editingOriginalId != null) {
-                    // Update original entry with draft data
-                    val updatedOriginal = currentDraft.copy(
-                        id = editingOriginalId!!,
+                if (isEditing) {
+                    // CASE A — Editing Existing Entry: Commit changes immediately on app close
+                    // Updated to include timestamp refresh so it reflects "last modified"
+                    val updated = currentDraft.copy(
                         isDraft = false,
                         timestamp = System.currentTimeMillis()
                     )
-                    repository.update(updatedOriginal)
-                    repository.delete(currentDraft)
+                    repository.update(updated)
                 } else {
-                    // New entry: make it permanent
-                    val published = currentDraft.copy(
-                        isDraft = false,
-                        timestamp = System.currentTimeMillis()
-                    )
-                    repository.update(published)
+                    // CASE B — Creating New Entry (Draft): Keep it as a draft
+                    repository.update(currentDraft)
                 }
-                _draft.value = null
-                editingOriginalId = null
             }
         }
     }
 
-    // 3. On Discard: Delete editingEntry / draft
-    fun discardDraft() {
+    // ✅ Manual Save: Updates timestamp and commits the draft
+    fun publishDraft() {
         viewModelScope.launch {
-            _draft.value?.let {
-                repository.delete(it)
+            _draft.value?.let { currentDraft ->
+                val published = currentDraft.copy(
+                    isDraft = false,
+                    timestamp = System.currentTimeMillis()
+                )
+                repository.update(published)
                 _draft.value = null
                 editingOriginalId = null
+                originalEntrySnapshot = null
+            }
+        }
+    }
+
+    fun discardDraft() {
+        viewModelScope.launch {
+            _draft.value?.let { currentDraft ->
+                if (isEditing && originalEntrySnapshot != null) {
+                    // Revert to original state using snapshot
+                    repository.update(originalEntrySnapshot!!)
+                } else {
+                    // New entry: delete the draft row
+                    repository.delete(currentDraft)
+                }
+                _draft.value = null
+                editingOriginalId = null
+                originalEntrySnapshot = null
             }
         }
     }
@@ -157,6 +179,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
         _draft.value = null
         editingOriginalId = null
+        originalEntrySnapshot = null
     }
 
     fun deleteEntry(entry: Entry) {
@@ -171,8 +194,6 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Note: updateEntry is still used for direct updates if needed, 
-    // but NewEntryScreen now uses the draft flow.
     fun updateEntry(entry: Entry) {
         viewModelScope.launch {
             repository.update(entry)

@@ -25,7 +25,6 @@ fun EntryApp(
 ) {
     var currentScreen by rememberSaveable { mutableStateOf("home") }
     var selectedEntry by remember { mutableStateOf<Entry?>(null) }
-    // UX improvement: Track if we are in edit mode
     var isEditing by rememberSaveable { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -57,7 +56,6 @@ fun EntryApp(
                 onAddClick = {
                     isEditing = false
                     selectedEntry = null
-                    viewModel.deleteDraft()
                     viewModel.createDraft()
                     currentScreen = "newEntry"
                 },
@@ -75,6 +73,7 @@ fun EntryApp(
         "newEntry" -> {
             NewEntryScreen(
                 draft = draft,
+                originalEntry = selectedEntry,
                 isEditing = isEditing,
                 snackbarHostState = snackbarHostState,
                 onTitleChange = { newTitle ->
@@ -87,13 +86,21 @@ fun EntryApp(
                     viewModel.publishDraft()
                     currentScreen = "home"
                 },
-                onBack = {
+                onSaveAndViewDetail = {
+                    // ✅ ISSUE 2 FIX: Navigate back to Detail screen on save
+                    viewModel.publishDraft()
+                    currentScreen = "detail"
+                },
+                onBackToHome = {
                     viewModel.discardDraft()
-                    if (isEditing) {
-                        currentScreen = "detail"
-                    } else {
-                        currentScreen = "home"
-                    }
+                    currentScreen = "home"
+                },
+                onBackToDetail = {
+                    viewModel.discardDraft()
+                    currentScreen = "detail"
+                },
+                onAutoSave = {
+                    viewModel.autoSave()
                 },
                 onNavigateToImageMedia = {
                     currentScreen = "imageMedia"
@@ -116,7 +123,6 @@ fun EntryApp(
         }
         "detail" -> {
             selectedEntry?.let { entry ->
-                // Observe the entry from the list to get updates after save
                 val latestEntry = entries.find { it.id == entry.id } ?: entry
                 EntryDetailScreen(
                     entry = latestEntry,
