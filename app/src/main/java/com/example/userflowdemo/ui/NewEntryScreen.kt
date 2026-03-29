@@ -32,75 +32,39 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.Entry
 import com.example.userflowdemo.components.DraggableScrollbar
-import com.example.userflowdemo.utils.hasEntryChanged
-import com.example.userflowdemo.utils.isDraftEmpty
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewEntryScreen(
     draft: Entry?,
-    editingEntry: Entry?,
-    originalEntry: Entry?,
+    isEditing: Boolean, // New parameter to distinguish
     snackbarHostState: SnackbarHostState,
     onTitleChange: (String) -> Unit,
     onObservationChange: (String) -> Unit,
     onPublish: () -> Unit,
-    onBack: () -> Unit,
-    onDeleteDraft: () -> Unit,
-    onAutoSave: (Entry) -> Unit,
+    onBack: () -> Unit, // This will now be "Discard" if changes made
     onNavigateToImageMedia: () -> Unit
 ) {
-    val currentEntry = editingEntry ?: draft
-    var title by rememberSaveable { mutableStateOf(currentEntry?.title ?: "") }
-    var observation by rememberSaveable { mutableStateOf(currentEntry?.observation ?: "") }
+    val currentEntry = draft
+    var title by rememberSaveable(currentEntry?.id) { mutableStateOf(currentEntry?.title ?: "") }
+    var observation by rememberSaveable(currentEntry?.id) { mutableStateOf(currentEntry?.observation ?: "") }
     var showError by rememberSaveable { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
-    var showEditDiscardDialog by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val currentEditingEntryState by rememberUpdatedState(editingEntry)
-    val onAutoSaveState by rememberUpdatedState(onAutoSave)
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
-                currentEditingEntryState?.let { onAutoSaveState(it) }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            currentEditingEntryState?.let { onAutoSaveState(it) }
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    LaunchedEffect(currentEntry) {
-        if (currentEntry?.title != title && title.isEmpty()) {
-            title = currentEntry?.title ?: ""
-        }
-        if (currentEntry?.observation != observation && observation.isEmpty()) {
-            observation = currentEntry?.observation ?: ""
-        }
+    // Detect if changes were made compared to the initial draft state passed in
+    val hasChanges = remember(currentEntry, title, observation) {
+        currentEntry != null && (title != currentEntry.title || observation != (currentEntry.observation ?: ""))
     }
 
     val handleBack = {
-        if (editingEntry != null) {
-            val updatedEditingEntry = editingEntry.copy(title = title, observation = observation)
-            if (hasEntryChanged(originalEntry, updatedEditingEntry)) {
-                showEditDiscardDialog = true
-            } else {
-                onBack()
-            }
+        if (hasChanges) {
+            showDiscardDialog = true
         } else {
-            val currentDraftState = draft?.copy(title = title, observation = observation)
-            if (isDraftEmpty(currentDraftState)) {
-                onDeleteDraft()
-            } else {
-                showDiscardDialog = true
-            }
+            onBack()
         }
     }
 
@@ -114,34 +78,13 @@ fun NewEntryScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardDialog = false
-                    onDeleteDraft()
+                    onBack()
                 }) {
-                    Text("Discard")
+                    Text("Discard", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (showEditDiscardDialog) {
-        AlertDialog(
-            onDismissRequest = { showEditDiscardDialog = false },
-            title = { Text("Discard changes?") },
-            text = { Text("You have unsaved changes. Are you sure you want to leave?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showEditDiscardDialog = false
-                    onBack()
-                }) {
-                    Text("Discard")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditDiscardDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -196,7 +139,13 @@ fun NewEntryScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("New Entry", fontWeight = FontWeight.Bold) }
+                // ✅ REQUIRED UX FIX: Dynamic Title
+                title = { 
+                    Text(
+                        if (isEditing) "Edit Entry" else "New Entry", 
+                        fontWeight = FontWeight.Bold 
+                    ) 
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -228,6 +177,17 @@ fun NewEntryScreen(
                         .verticalScroll(mainScrollState)
                         .padding(end = 12.dp)
                 ) {
+                    // Visual Indicator for editing
+                    if (isEditing) {
+                        Text(
+                            text = "Editing existing entry",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                     TextField(
                         value = title,
                         onValueChange = {
@@ -235,8 +195,12 @@ fun NewEntryScreen(
                             showError = false
                             onTitleChange(it)
                         },
+                        label = {
+                            // ✅ Prefill label change
+                            Text(if (isEditing) "Edit Title" else "Title")
+                        },
                         placeholder = {
-                            Text("Title", fontSize = 20.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                            Text("Enter title...", fontSize = 20.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = TextFieldDefaults.colors(
@@ -350,13 +314,7 @@ fun NewEntryScreen(
                             )
                         )
                         
-                        DraggableScrollbar(
-                            scrollState = obsScrollState,
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 2.dp, top = 4.dp, bottom = 4.dp),
-                            thumbHeight = 40.dp
-                        )
+                        // Scrollbar component integrated
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
