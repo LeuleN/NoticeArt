@@ -166,6 +166,16 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Restores a discarded draft and ensures it is loaded into memory.
+     */
+    fun restoreDraft(entry: Entry) {
+        viewModelScope.launch {
+            repository.insert(entry)
+            loadDraft()
+        }
+    }
+
     fun deleteDraft() {
         viewModelScope.launch {
             deleteDraftInternal()

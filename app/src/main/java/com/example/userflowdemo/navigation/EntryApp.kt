@@ -29,10 +29,12 @@ fun EntryApp(
 
     val snackbarHostState = remember { SnackbarHostState() }
     var recentlyDeletedEntry by remember { mutableStateOf<Entry?>(null) }
+    var recentlyDiscardedDraft by remember { mutableStateOf<Entry?>(null) }
 
     val entries by viewModel.entries.collectAsState()
     val draft by viewModel.draft.collectAsState()
 
+    // Handle Undo for deleted entries
     LaunchedEffect(recentlyDeletedEntry) {
         recentlyDeletedEntry?.let { entry ->
             val result = snackbarHostState.showSnackbar(
@@ -44,6 +46,22 @@ fun EntryApp(
                 viewModel.insertEntry(entry)
             }
             recentlyDeletedEntry = null
+        }
+    }
+
+    // Handle Undo for discarded drafts
+    LaunchedEffect(recentlyDiscardedDraft) {
+        recentlyDiscardedDraft?.let { entry ->
+            val result = snackbarHostState.showSnackbar(
+                message = "Draft discarded",
+                actionLabel = "UNDO",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.restoreDraft(entry)
+                currentScreen = "newEntry"
+            }
+            recentlyDiscardedDraft = null
         }
     }
 
@@ -87,12 +105,16 @@ fun EntryApp(
                     currentScreen = "home"
                 },
                 onSaveAndViewDetail = {
-                    // ✅ ISSUE 2 FIX: Navigate back to Detail screen on save
                     viewModel.publishDraft()
                     currentScreen = "detail"
                 },
                 onBackToHome = {
+                    // Capture draft for UNDO before discarding
+                    val draftToRestore = draft
                     viewModel.discardDraft()
+                    if (draftToRestore != null && !isEditing) {
+                        recentlyDiscardedDraft = draftToRestore
+                    }
                     currentScreen = "home"
                 },
                 onBackToDetail = {
