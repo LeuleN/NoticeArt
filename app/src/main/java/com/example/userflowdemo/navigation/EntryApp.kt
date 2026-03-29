@@ -16,6 +16,7 @@ import com.example.userflowdemo.Entry
 import com.example.userflowdemo.EntryViewModel
 import com.example.userflowdemo.ui.EntryDetailScreen
 import com.example.userflowdemo.ui.HomeScreen
+import com.example.userflowdemo.ui.ImageMediaScreen
 import com.example.userflowdemo.ui.NewEntryScreen
 
 @Composable
@@ -47,121 +48,130 @@ fun EntryApp(
         }
     }
 
-    if (currentScreen == "home") {
-        HomeScreen(
-            entries = entries,
-            draft = draft,
-            snackbarHostState = snackbarHostState,
-            onAddClick = {
-                editingEntry = null
-                originalEntry = null
-                selectedEntry = null
-                viewModel.deleteDraft()
-                viewModel.createDraft()
-                currentScreen = "newEntry"
-            },
-            onDraftClick = {
-                editingEntry = null
-                originalEntry = null
-                selectedEntry = null
-                currentScreen = "newEntry"
-            },
-            onEntryClick = { entry ->
-                selectedEntry = entry
-                editingEntry = null
-                originalEntry = null
-                currentScreen = "detail"
-            }
-        )
-    } else if (currentScreen == "newEntry") {
-        NewEntryScreen(
-            draft = draft,
-            editingEntry = editingEntry,
-            originalEntry = originalEntry,
-            snackbarHostState = snackbarHostState,
-            onTitleChange = { newTitle ->
-                if (editingEntry != null) {
-                    editingEntry = editingEntry!!.copy(title = newTitle)
-                } else {
-                    viewModel.updateDraft(newTitle)
-                }
-            },
-            onObservationChange = { newObservation ->
-                if (editingEntry != null) {
-                    editingEntry = editingEntry!!.copy(observation = newObservation)
-                } else {
-                    viewModel.updateObservation(newObservation)
-                }
-            },
-            onPublish = {
-                if (editingEntry != null) {
-                    viewModel.updateEntry(
-                        editingEntry!!.copy(timestamp = System.currentTimeMillis())
-                    )
-                    selectedEntry = editingEntry
+    when (currentScreen) {
+        "home" -> {
+            HomeScreen(
+                entries = entries,
+                draft = draft,
+                snackbarHostState = snackbarHostState,
+                onAddClick = {
                     editingEntry = null
                     originalEntry = null
-                } else {
-                    viewModel.publishDraft()
-                }
-                currentScreen = "home"
-            },
-            onBack = {
-                if (editingEntry != null) {
+                    selectedEntry = null
+                    viewModel.deleteDraft()
+                    viewModel.createDraft()
+                    currentScreen = "newEntry"
+                },
+                onDraftClick = {
+                    editingEntry = null
+                    originalEntry = null
+                    selectedEntry = null
+                    currentScreen = "newEntry"
+                },
+                onEntryClick = { entry ->
+                    selectedEntry = entry
                     editingEntry = null
                     originalEntry = null
                     currentScreen = "detail"
-                } else {
-                    currentScreen = "home"
                 }
-            },
-            onDeleteDraft = {
-                if (editingEntry == null) {
-                    viewModel.deleteDraft()
-                    currentScreen = "home"
-                }
-            },
-            onImageSelected = { uri ->
-                if (editingEntry != null) {
-                    editingEntry = editingEntry!!.copy(
-                        imageUri = uri,
-                        color = null
-                    )
-                } else {
-                    viewModel.attachImage(uri)
-                }
-            },
-            onColorSelected = { color ->
-                if (editingEntry != null) {
-                    editingEntry = editingEntry!!.copy(color = color)
-                } else {
-                    viewModel.updateColor(color)
-                }
-            },
-            onAutoSave = { entry ->
-                viewModel.updateEntry(entry)
-            }
-        )
-    } else if (currentScreen == "detail") {
-        selectedEntry?.let {
-            EntryDetailScreen(
-                entry = it,
-                onBack = { currentScreen = "home" },
-                onDelete = {
-                    recentlyDeletedEntry = it
-                    viewModel.deleteEntry(it)
-                    selectedEntry = null
-                    editingEntry = null
-                    originalEntry = null
+            )
+        }
+        "newEntry" -> {
+            NewEntryScreen(
+                draft = draft,
+                editingEntry = editingEntry,
+                originalEntry = originalEntry,
+                snackbarHostState = snackbarHostState,
+                onTitleChange = { newTitle ->
+                    if (editingEntry != null) {
+                        editingEntry = editingEntry!!.copy(title = newTitle)
+                    } else {
+                        viewModel.updateDraft(newTitle)
+                    }
+                },
+                onObservationChange = { newObservation ->
+                    if (editingEntry != null) {
+                        editingEntry = editingEntry!!.copy(observation = newObservation)
+                    } else {
+                        viewModel.updateObservation(newObservation)
+                    }
+                },
+                onPublish = {
+                    if (editingEntry != null) {
+                        viewModel.updateEntry(
+                            editingEntry!!.copy(timestamp = System.currentTimeMillis())
+                        )
+                        selectedEntry = editingEntry
+                        editingEntry = null
+                        originalEntry = null
+                    } else {
+                        viewModel.publishDraft()
+                    }
                     currentScreen = "home"
                 },
-                onEdit = {
-                    val entryToEdit = it.copy()
-                    editingEntry = entryToEdit
-                    originalEntry = it.copy()
+                onBack = {
+                    if (editingEntry != null) {
+                        editingEntry = null
+                        originalEntry = null
+                        currentScreen = "detail"
+                    } else {
+                        currentScreen = "home"
+                    }
+                },
+                onDeleteDraft = {
+                    if (editingEntry == null) {
+                        viewModel.deleteDraft()
+                        currentScreen = "home"
+                    }
+                },
+                onAutoSave = { entry ->
+                    viewModel.updateEntry(entry)
+                },
+                onNavigateToImageMedia = {
+                    currentScreen = "imageMedia"
+                }
+            )
+        }
+        "imageMedia" -> {
+            val entryForMedia = editingEntry ?: draft
+            ImageMediaScreen(
+                initialImageUri = entryForMedia?.imageUri,
+                initialColor = entryForMedia?.color,
+                onConfirm = { uri, color ->
+                    if (editingEntry != null) {
+                        editingEntry = editingEntry!!.copy(imageUri = uri, color = color)
+                    } else {
+                        viewModel.attachImage(uri)
+                        color?.let { viewModel.updateColor(it) }
+                    }
+                    currentScreen = "newEntry"
+                },
+                onBack = {
                     currentScreen = "newEntry"
                 }
             )
+        }
+        "detail" -> {
+            selectedEntry?.let {
+                EntryDetailScreen(
+                    entry = it,
+                    onBack = { currentScreen = "home" },
+                    onDelete = {
+                        recentlyDeletedEntry = it
+                        viewModel.deleteEntry(it)
+                        selectedEntry = null
+                        editingEntry = null
+                        originalEntry = null
+                        currentScreen = "home"
+                    },
+                    onEdit = {
+                        val entryToEdit = it.copy()
+                        editingEntry = entryToEdit
+                        originalEntry = it.copy()
+                        currentScreen = "newEntry"
+                    }
+                )
+            }
         }
     }
 }

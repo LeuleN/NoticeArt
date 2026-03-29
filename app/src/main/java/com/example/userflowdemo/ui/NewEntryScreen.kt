@@ -1,73 +1,41 @@
 package com.example.userflowdemo.ui
 
-import android.content.Intent
-import android.graphics.BitmapFactory
-import android.graphics.ImageDecoder
-import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.Entry
 import com.example.userflowdemo.components.DraggableScrollbar
 import com.example.userflowdemo.utils.hasEntryChanged
 import com.example.userflowdemo.utils.isDraftEmpty
-import kotlin.math.max
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewEntryScreen(
     draft: Entry?,
@@ -79,9 +47,8 @@ fun NewEntryScreen(
     onPublish: () -> Unit,
     onBack: () -> Unit,
     onDeleteDraft: () -> Unit,
-    onImageSelected: (String) -> Unit,
-    onColorSelected: (Int) -> Unit,
-    onAutoSave: (Entry) -> Unit
+    onAutoSave: (Entry) -> Unit,
+    onNavigateToImageMedia: () -> Unit
 ) {
     val currentEntry = editingEntry ?: draft
     var title by rememberSaveable { mutableStateOf(currentEntry?.title ?: "") }
@@ -89,14 +56,14 @@ fun NewEntryScreen(
     var showError by rememberSaveable { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEditDiscardDialog by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+    var showBottomSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Use updated states for the lifecycle observer to capture latest values
     val currentEditingEntryState by rememberUpdatedState(editingEntry)
     val onAutoSaveState by rememberUpdatedState(onAutoSave)
 
-    // Auto-save logic
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
@@ -128,17 +95,15 @@ fun NewEntryScreen(
                 onBack()
             }
         } else {
-            // For drafts, check if it's empty
             val currentDraftState = draft?.copy(title = title, observation = observation)
             if (isDraftEmpty(currentDraftState)) {
-                onDeleteDraft() // Automatically delete and go home
+                onDeleteDraft()
             } else {
-                showDiscardDialog = true // Confirm discard for contentful drafts
+                showDiscardDialog = true
             }
         }
     }
 
-    // Handle system back button
     BackHandler(onBack = handleBack)
 
     if (showDiscardDialog) {
@@ -183,19 +148,57 @@ fun NewEntryScreen(
         )
     }
 
-    val imagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            context.contentResolver.takePersistableUriPermission(
-                it,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-            onImageSelected(it.toString())
+    if (showBottomSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBottomSheet = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp, top = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Capture Media",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Add Image", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .clickable {
+                                showBottomSheet = false
+                                onNavigateToImageMedia()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.PhotoCamera,
+                            contentDescription = "Add Image",
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
         }
     }
 
     Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("New Entry", fontWeight = FontWeight.Bold) }
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
@@ -207,7 +210,7 @@ fun NewEntryScreen(
                     }
                 }
             ) {
-                Text("✓")
+                Icon(Icons.Default.Check, contentDescription = "Publish")
             }
         }
     ) { padding ->
@@ -215,28 +218,38 @@ fun NewEntryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            // 1. Scrollable Content Area with Scrollbar
             val mainScrollState = rememberScrollState()
             Box(modifier = Modifier.weight(1f)) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(mainScrollState)
-                        .padding(end = 12.dp) // Space for draggable thumb
+                        .padding(end = 12.dp)
                 ) {
-                    OutlinedTextField(
+                    TextField(
                         value = title,
                         onValueChange = {
                             title = it
                             showError = false
                             onTitleChange(it)
                         },
-                        label = {
-                            Text(if (editingEntry != null) "Edit Title" else "Title")
+                        placeholder = {
+                            Text("Title", fontSize = 20.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                            unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant
+                        ),
+                        textStyle = LocalTextStyle.current.copy(
+                            fontSize = 20.sp,
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Medium
+                        )
                     )
 
                     if (showError) {
@@ -244,114 +257,63 @@ fun NewEntryScreen(
                             text = "Title required",
                             color = Color.Red,
                             style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 4.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
                         )
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            onClick = { imagePicker.launch(arrayOf("image/*")) },
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer
+                    Text("Add Media", style = MaterialTheme.typography.labelLarge)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (currentEntry?.imageUri == null) {
+                        Box(
+                            modifier = Modifier
+                                .size(120.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                                .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                                .clickable { showBottomSheet = true },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "Add Image",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                style = MaterialTheme.typography.labelLarge
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Add Media",
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
                             )
                         }
-
-                        currentEntry?.color?.let {
-                            Spacer(modifier = Modifier.size(16.dp))
+                    } else {
+                        Row(verticalAlignment = Alignment.Top) {
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(it))
-                            )
-                        }
-                    }
-
-                    currentEntry?.imageUri?.let { uri ->
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        val bitmap = remember(uri) {
-                            try {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                    val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(uri))
-                                    ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-                                        decoder.isMutableRequired = true
-                                    }
-                                } else {
-                                    context.contentResolver.openInputStream(Uri.parse(uri))?.use {
-                                        BitmapFactory.decodeStream(it)
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                null
+                                    .size(120.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                            ) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(currentEntry.imageUri),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
                             }
-                        }
-
-                        Box(modifier = Modifier.height(200.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp))) {
-                            Image(
-                                painter = rememberAsyncImagePainter(uri),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .pointerInput(uri) {
-                                        detectTapGestures { offset ->
-                                            bitmap?.let { b ->
-                                                try {
-                                                    // 1. Get View and Bitmap dimensions
-                                                    val viewWidth = size.width.toFloat()
-                                                    val viewHeight = size.height.toFloat()
-                                                    val bmpWidth = b.width.toFloat()
-                                                    val bmpHeight = b.height.toFloat()
-
-                                                    // 2. Calculate Scale (ContentScale.Crop logic)
-                                                    val scale = max(viewWidth / bmpWidth, viewHeight / bmpHeight)
-
-                                                    // 3. Calculate cropping offsets
-                                                    val scaledWidth = bmpWidth * scale
-                                                    val scaledHeight = bmpHeight * scale
-                                                    val offsetX = (scaledWidth - viewWidth) / 2f
-                                                    val offsetY = (scaledHeight - viewHeight) / 2f
-
-                                                    // 4. Map tap coordinate to original bitmap
-                                                    val bitmapX = ((offset.x + offsetX) / scale).toInt().coerceIn(0, b.width - 1)
-                                                    val bitmapY = ((offset.y + offsetY) / scale).toInt().coerceIn(0, b.height - 1)
-
-                                                    val pixel = b.getPixel(bitmapX, bitmapY)
-                                                    onColorSelected(pixel)
-                                                } catch (e: Exception) {
-                                                }
-                                            }
-                                        }
-                                    }
-                            )
                             
-                            if (bitmap != null) {
-                                Surface(
-                                    modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp),
-                                    color = Color.Black.copy(alpha = 0.6f),
-                                    shape = RoundedCornerShape(4.dp)
-                                ) {
-                                    Text(
-                                        "Tap image to pick color",
-                                        modifier = Modifier.padding(6.dp),
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
+                            currentEntry.color?.let {
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(it))
+                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
-                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(32.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
@@ -360,14 +322,14 @@ fun NewEntryScreen(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
-                    // 2. Internally Scrollable Observation Box with Draggable Scrollbar
                     val obsScrollState = rememberScrollState()
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 120.dp, max = 200.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                            .heightIn(min = 150.dp, max = 250.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
                     ) {
                         TextField(
                             value = observation,
@@ -407,22 +369,20 @@ fun NewEntryScreen(
                 )
             }
 
-            // 3. Fixed Bottom Action Area
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp),
+                    .padding(vertical = 16.dp),
                 horizontalArrangement = Arrangement.Start
             ) {
                 Text(
                     text = "Back",
                     modifier = Modifier.clickable { handleBack() },
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
                 )
             }
-            
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
