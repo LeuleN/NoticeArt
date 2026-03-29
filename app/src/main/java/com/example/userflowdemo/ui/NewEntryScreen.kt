@@ -39,17 +39,17 @@ import com.example.userflowdemo.utils.isDraftEmpty
 @Composable
 fun NewEntryScreen(
     draft: Entry?,
-    originalEntry: Entry?, // REQUIRED: To detect changes in edit mode
+    originalEntry: Entry?, 
     isEditing: Boolean, 
     snackbarHostState: SnackbarHostState,
     onTitleChange: (String) -> Unit,
     onObservationChange: (String) -> Unit,
     onPublish: () -> Unit,
-    onSaveAndViewDetail: () -> Unit, // NEW: Save navigation path for editing
-    onBackToHome: () -> Unit,   // REQUIRED: Home navigation path
-    onBackToDetail: () -> Unit, // REQUIRED: Detail navigation path
-    onAutoSave: () -> Unit, // REQUIRED: For lifecycle auto-save
-    onNavigateToImageMedia: () -> Unit
+    onSaveAndViewDetail: () -> Unit,
+    onBackToHome: () -> Unit,
+    onBackToDetail: () -> Unit,
+    onAutoSave: () -> Unit,
+    onNavigateToImageMedia: (Int?) -> Unit
 ) {
     val currentEntry = draft
     var title by rememberSaveable(currentEntry?.id) { mutableStateOf(currentEntry?.title ?: "") }
@@ -59,12 +59,10 @@ fun NewEntryScreen(
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
-    // Support multiple media items in UI session 
-    val mediaItems = currentEntry?.imageUris ?: emptyList()
+    val mediaItems = currentEntry?.media ?: emptyList()
     
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // ISSUE 1 FIX (Lifecycle): Trigger onAutoSave on background/kill
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
@@ -147,7 +145,7 @@ fun NewEntryScreen(
                             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                             .clickable {
                                 showBottomSheet = false
-                                onNavigateToImageMedia()
+                                onNavigateToImageMedia(-1)
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -181,7 +179,6 @@ fun NewEntryScreen(
                     if (title.isBlank()) {
                         showError = true
                     } else {
-                        // ✅ ISSUE 2 FIX: Navigate correctly on save
                         if (isEditing) {
                             onSaveAndViewDetail()
                         } else {
@@ -260,24 +257,23 @@ fun NewEntryScreen(
                     Text("Add Media", style = MaterialTheme.typography.labelLarge)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Media grid: First item is always "+"
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val items = listOf("Add") + mediaItems
-                        items.chunked(2).forEach { rowItems ->
+                        val itemsWithIndex = listOf(null to -1) + mediaItems.mapIndexed { index, item -> item to index }
+                        itemsWithIndex.chunked(2).forEach { rowItems ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                rowItems.forEach { item ->
+                                rowItems.forEach { (mediaItem, index) ->
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
                                             .aspectRatio(1f)
                                     ) {
-                                        if (item == "Add") {
+                                        if (mediaItem == null) {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxSize()
@@ -295,42 +291,35 @@ fun NewEntryScreen(
                                                 )
                                             }
                                         } else {
-                                            val uri = item
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxSize()
                                                     .clip(RoundedCornerShape(16.dp))
                                                     .background(MaterialTheme.colorScheme.surfaceVariant)
+                                                    .clickable { onNavigateToImageMedia(index) }
                                             ) {
                                                 Image(
-                                                    painter = rememberAsyncImagePainter(uri),
+                                                    painter = rememberAsyncImagePainter(mediaItem.imageUri),
                                                     contentDescription = null,
                                                     contentScale = ContentScale.Crop,
                                                     modifier = Modifier.fillMaxSize()
                                                 )
 
-                                                // Show active color dot if applicable
-                                                // Note: Logic for which image gets the dot is preserved 
-                                                // from previous single-image implementation (comparing against a single URI)
-                                                // If database logic changes, this can be updated.
-                                                if (uri == currentEntry?.imageUris?.firstOrNull()) {
-                                                    currentEntry.color?.let { colorInt ->
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .padding(8.dp)
-                                                                .size(18.dp)
-                                                                .align(Alignment.TopEnd)
-                                                                .clip(CircleShape)
-                                                                .background(Color(colorInt))
-                                                                .border(1.5.dp, Color.White, CircleShape)
-                                                        )
-                                                    }
+                                                mediaItem.color?.let { colorInt ->
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .padding(8.dp)
+                                                            .size(18.dp)
+                                                            .align(Alignment.TopEnd)
+                                                            .clip(CircleShape)
+                                                            .background(Color(colorInt))
+                                                            .border(1.5.dp, Color.White, CircleShape)
+                                                    )
                                                 }
                                             }
                                         }
                                     }
                                 }
-                                // Fill the row if it only has one item
                                 if (rowItems.size == 1) {
                                     Spacer(modifier = Modifier.weight(1f))
                                 }

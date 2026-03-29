@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [Entry::class],
-    version = 102 // Incrementing version for the schema change
+    version = 103 // Incrementing version for the schema change
 )
 @TypeConverters(Converters::class)
 abstract class EntryDatabase : RoomDatabase() {

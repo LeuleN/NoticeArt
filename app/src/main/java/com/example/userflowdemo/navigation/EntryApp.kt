@@ -27,6 +27,7 @@ fun EntryApp(
     var currentScreen by rememberSaveable { mutableStateOf("home") }
     var selectedEntry by remember { mutableStateOf<Entry?>(null) }
     var isEditing by rememberSaveable { mutableStateOf(false) }
+    var editingMediaIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var recentlyDeletedEntry by remember { mutableStateOf<Entry?>(null) }
@@ -110,10 +111,8 @@ fun EntryApp(
                     currentScreen = "detail"
                 },
                 onBackToHome = {
-                    // Capture draft for UNDO before discarding
                     val draftToRestore = draft
                     viewModel.discardDraft()
-                    // ✅ FIX: Only show UNDO snackbar if the draft was NOT empty
                     if (draftToRestore != null && !isEditing && !isDraftEmpty(draftToRestore)) {
                         recentlyDiscardedDraft = draftToRestore
                     }
@@ -126,21 +125,26 @@ fun EntryApp(
                 onAutoSave = {
                     viewModel.autoSave()
                 },
-                onNavigateToImageMedia = {
+                onNavigateToImageMedia = { index ->
+                    editingMediaIndex = index
                     currentScreen = "imageMedia"
                 }
             )
         }
         "imageMedia" -> {
+            val mediaItem = editingMediaIndex?.let { index ->
+                if (index >= 0) draft?.media?.getOrNull(index) else null
+            }
             ImageMediaScreen(
-                initialImageUri = draft?.imageUris?.firstOrNull(),
-                initialColor = draft?.color,
+                initialImageUri = mediaItem?.imageUri,
+                initialColor = mediaItem?.color,
                 onConfirm = { uri, color ->
-                    viewModel.attachImage(uri)
-                    color?.let { viewModel.updateColor(it) }
+                    viewModel.addOrUpdateMediaItem(uri, color, editingMediaIndex?.takeIf { it >= 0 })
+                    editingMediaIndex = null
                     currentScreen = "newEntry"
                 },
                 onBack = {
+                    editingMediaIndex = null
                     currentScreen = "newEntry"
                 }
             )

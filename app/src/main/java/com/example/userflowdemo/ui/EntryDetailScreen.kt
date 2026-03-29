@@ -100,22 +100,11 @@ fun EntryDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = entry.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    entry.color?.let {
-                        Spacer(modifier = Modifier.size(16.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(Color(it))
-                        )
-                    }
-                }
+                Text(
+                    text = entry.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
                 
                 Text(
                     text = formattedTime,
@@ -123,18 +112,31 @@ fun EntryDetailScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                entry.imageUris.forEach { uri ->
+                entry.media.forEach { mediaItem ->
                     Spacer(modifier = Modifier.height(24.dp))
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().height(300.dp)
-                    ) {
-                        Image(
-                            painter = rememberAsyncImagePainter(uri),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth().height(300.dp)
+                        ) {
+                            Image(
+                                painter = rememberAsyncImagePainter(mediaItem.imageUri),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        mediaItem.color?.let { colorInt ->
+                            Box(
+                                modifier = Modifier
+                                    .padding(12.dp)
+                                    .size(24.dp)
+                                    .align(Alignment.TopEnd)
+                                    .clip(CircleShape)
+                                    .background(Color(colorInt))
+                                    .border(2.dp, Color.White, CircleShape)
+                            )
+                        }
                     }
                 }
 

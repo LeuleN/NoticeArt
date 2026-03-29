@@ -23,9 +23,8 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     private val _draft = MutableStateFlow<Entry?>(null)
     val draft: StateFlow<Entry?> = _draft
 
-    // 3. ViewModel MUST distinguish modes
     private var editingOriginalId: Long? = null
-    private var originalEntrySnapshot: Entry? = null // For isolated revert on discard
+    private var originalEntrySnapshot: Entry? = null
 
     val isEditing: Boolean get() = editingOriginalId != null
 
@@ -39,14 +38,13 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createDraft(title: String = "", observation: String? = null, imageUris: List<String> = emptyList(), color: Int? = null) {
+    fun createDraft(title: String = "", observation: String? = null, media: List<MediaItem> = emptyList()) {
         viewModelScope.launch {
             deleteDraftInternal()
             val draftEntry = Entry(
                 title = title,
                 observation = observation,
-                imageUris = imageUris,
-                color = color,
+                media = media,
                 isDraft = true
             )
             repository.insert(draftEntry)
@@ -56,19 +54,13 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // 1. Editing MUST preserve original ID
     fun startEditing(entry: Entry) {
         viewModelScope.launch {
-            // 6. CLEANUP: Ensure no other draft exists
             deleteDraftInternal()
-            
-            // Mark the ORIGINAL entry as a draft to isolate it from the main list
             val editingEntry = entry.copy(isDraft = true)
             repository.update(editingEntry)
-            
             _draft.value = editingEntry
             editingOriginalId = entry.id
-            // Take a snapshot of the entry as it was before editing for discard/revert
             originalEntrySnapshot = entry.copy(isDraft = false)
         }
     }
@@ -93,49 +85,41 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun attachImage(uri: String) {
+    fun addOrUpdateMediaItem(uri: String, color: Int?, index: Int? = null) {
         viewModelScope.launch {
-            _draft.value?.let {
-                // Append the new URI to the list, instead of replacing it
-                val updatedUris = it.imageUris + uri
-                val updated = it.copy(imageUris = updatedUris, color = null)
+            _draft.value?.let { draft ->
+                val updatedMedia = draft.media.toMutableList()
+                val newItem = MediaItem(imageUri = uri, color = color)
+                
+                if (index != null && index in updatedMedia.indices) {
+                    updatedMedia[index] = newItem
+                } else {
+                    updatedMedia.add(newItem)
+                }
+                
+                val updated = draft.copy(media = updatedMedia)
                 repository.update(updated)
                 _draft.value = updated
             }
         }
     }
 
-    fun updateColor(color: Int) {
-        viewModelScope.launch {
-            _draft.value?.let {
-                val updated = it.copy(color = color)
-                repository.update(updated)
-                _draft.value = updated
-            }
-        }
-    }
-
-    // ✅ FIXED: Update timestamp during auto-save for edits
     fun autoSave() {
         viewModelScope.launch {
             _draft.value?.let { currentDraft ->
                 if (isEditing) {
-                    // CASE A — Editing Existing Entry: Commit changes immediately on app close
-                    // Updated to include timestamp refresh so it reflects "last modified"
                     val updated = currentDraft.copy(
                         isDraft = false,
                         timestamp = System.currentTimeMillis()
                     )
                     repository.update(updated)
                 } else {
-                    // CASE B — Creating New Entry (Draft): Keep it as a draft
                     repository.update(currentDraft)
                 }
             }
         }
     }
 
-    // ✅ Manual Save: Updates timestamp and commits the draft
     fun publishDraft() {
         viewModelScope.launch {
             _draft.value?.let { currentDraft ->
@@ -155,10 +139,8 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _draft.value?.let { currentDraft ->
                 if (isEditing && originalEntrySnapshot != null) {
-                    // Revert to original state using snapshot
                     repository.update(originalEntrySnapshot!!)
                 } else {
-                    // New entry: delete the draft row
                     repository.delete(currentDraft)
                 }
                 _draft.value = null
@@ -168,9 +150,6 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * Restores a discarded draft and ensures it is loaded into memory.
-     */
     fun restoreDraft(entry: Entry) {
         viewModelScope.launch {
             repository.insert(entry)

@@ -6,7 +6,7 @@ import com.example.userflowdemo.Entry
  * Helper to determine if a draft is effectively empty and should be discarded.
  */
 fun isDraftEmpty(entry: Entry?): Boolean {
-    return entry == null || (entry.title.isBlank() && entry.imageUris.isEmpty() && entry.color == null && entry.observation.isNullOrBlank())
+    return entry == null || (entry.title.isBlank() && entry.media.isEmpty() && entry.observation.isNullOrBlank())
 }
 
 /**
@@ -15,7 +15,6 @@ fun isDraftEmpty(entry: Entry?): Boolean {
 fun hasEntryChanged(original: Entry?, current: Entry?): Boolean {
     if (original == null || current == null) return false
     return original.title != current.title ||
-            original.imageUris != current.imageUris ||
-            original.color != current.color ||
+            original.media != current.media ||
             original.observation != current.observation
 }

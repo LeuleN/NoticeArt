@@ -81,12 +81,9 @@ fun EntryCard(
     ) {
         Box {
             Column {
-                // Top area: Image preview, Color block, or Placeholder
-                val firstImageUri = entry.imageUris.firstOrNull()
-                val backgroundColor = when {
-                    firstImageUri == null && entry.color != null -> Color(entry.color)
-                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                }
+                // Top area: Image preview or Placeholder
+                val firstMedia = entry.media.firstOrNull()
+                val backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
 
                 Box(
                     modifier = Modifier
@@ -94,9 +91,9 @@ fun EntryCard(
                         .height(120.dp)
                         .background(backgroundColor)
                 ) {
-                    if (firstImageUri != null) {
+                    if (firstMedia != null) {
                         Image(
-                            painter = rememberAsyncImagePainter(firstImageUri),
+                            painter = rememberAsyncImagePainter(firstMedia.imageUri),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
@@ -115,7 +112,7 @@ fun EntryCard(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
                         )
-                        if (firstImageUri != null) {
+                        if (firstMedia != null) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("📷", fontSize = 14.sp)
                         }

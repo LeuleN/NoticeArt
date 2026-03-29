@@ -3,6 +3,11 @@ package com.example.userflowdemo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+data class MediaItem(
+    val imageUri: String,
+    val color: Int? = null
+)
+
 @Entity
 data class Entry(
     @PrimaryKey(autoGenerate = true)
@@ -10,7 +15,6 @@ data class Entry(
     val title: String,
     val timestamp: Long = System.currentTimeMillis(),
     val isDraft: Boolean = false,
-    val imageUris: List<String> = emptyList(), // Changed from imageUri: String?
-    val color: Int? = null,
+    val media: List<MediaItem> = emptyList(),
     val observation: String? = null
 )
