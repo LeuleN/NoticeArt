@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -206,6 +207,55 @@ fun DraggableScrollbar(
                             }
                         },
                         orientation = Orientation.Vertical
+                    )
+            )
+        }
+    }
+}
+
+/**
+ * A scrollbar for LazyVerticalGrid that tracks scroll position based on visible items.
+ */
+@Composable
+fun GridScrollbar(
+    gridState: LazyGridState,
+    modifier: Modifier = Modifier,
+    thumbHeight: Dp = 60.dp
+) {
+    val totalItemsCount = gridState.layoutInfo.totalItemsCount
+    val visibleItemsCount = gridState.layoutInfo.visibleItemsInfo.size
+    
+    if (totalItemsCount > visibleItemsCount) {
+        BoxWithConstraints(
+            modifier = modifier
+                .fillMaxHeight()
+                .width(4.dp)
+        ) {
+            val visibleHeight = this.maxHeight
+            
+            // Calculate scroll percentage
+            val firstVisibleItem = gridState.firstVisibleItemIndex
+            val firstVisibleOffset = gridState.firstVisibleItemScrollOffset.toFloat()
+            
+            // Average item height for offset calculation (rough estimate)
+            val averageItemHeight = gridState.layoutInfo.visibleItemsInfo.firstOrNull()?.size?.height?.toFloat() ?: 1f
+            
+            // Estimate total scrollable range
+            // We use item indices as a proxy for scroll position
+            val totalScrollPercent = if (totalItemsCount > 0) {
+                (firstVisibleItem + (firstVisibleOffset / averageItemHeight)) / totalItemsCount.toFloat()
+            } else 0f
+
+            val moveRange = visibleHeight - thumbHeight
+            val thumbOffset = moveRange * totalScrollPercent.coerceIn(0f, 1f)
+
+            Box(
+                modifier = Modifier
+                    .offset(y = thumbOffset)
+                    .size(width = 4.dp, height = thumbHeight)
+                    .background(
+                        color = Color.Gray.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(2.dp)
                     )
             )
         }
