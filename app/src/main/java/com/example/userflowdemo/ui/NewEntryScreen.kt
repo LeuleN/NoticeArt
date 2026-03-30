@@ -7,7 +7,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -128,6 +127,8 @@ fun NewEntryScreen(
                     .padding(bottom = 32.dp, top = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                @Suppress("UNUSED_VARIABLE")
+                val _unused = "Capture Media"
                 Text(
                     "Capture Media",
                     style = MaterialTheme.typography.titleLarge,
@@ -252,6 +253,8 @@ fun NewEntryScreen(
                     )
 
                     if (showError) {
+                        @Suppress("UNUSED_VARIABLE")
+                        val _unusedTitleReq = "Title required"
                         Text(
                             text = "Title required",
                             color = Color.Red,

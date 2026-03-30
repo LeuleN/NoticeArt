@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import org.json.JSONArray
 import org.json.JSONObject
 
+@Suppress("UNUSED")
 class Converters {
     @TypeConverter
     fun fromMediaList(value: String): List<MediaItem> {
@@ -28,7 +29,7 @@ class Converters {
                 )
             }
             list
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }

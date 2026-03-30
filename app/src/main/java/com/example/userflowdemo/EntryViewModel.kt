@@ -150,6 +150,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    @Suppress("UNUSED")
     fun restoreDraft(entry: Entry) {
         viewModelScope.launch {
             repository.insert(entry)
