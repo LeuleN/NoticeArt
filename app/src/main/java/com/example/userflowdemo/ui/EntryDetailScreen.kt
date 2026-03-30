@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,15 +18,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,8 +47,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.Entry
+import com.example.userflowdemo.MediaItem
 import com.example.userflowdemo.components.DraggableScrollbar
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntryDetailScreen(
     entry: Entry,
@@ -55,6 +64,9 @@ fun EntryDetailScreen(
     ).format(java.util.Date(entry.timestamp))
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
+    // skipPartiallyExpanded ensures the sheet opens to its full content height immediately
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -77,149 +89,224 @@ fun EntryDetailScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .padding(16.dp)
-    ) {
-        // 1. Scrollable Content Area with Draggable Scrollbar
-        val mainScrollState = rememberScrollState()
-        Box(modifier = Modifier.weight(1f)) {
+    // Use null-safe check to prevent crashes during dismissal
+    selectedMediaItem?.let { mediaItem ->
+        ModalBottomSheet(
+            onDismissRequest = { selectedMediaItem = null },
+            sheetState = sheetState
+        ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(mainScrollState)
-                    .padding(end = 12.dp) // Space for draggable thumb
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp), // Tightened bottom space
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(mediaItem.imageUri),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
                 Text(
-                    text = "Entry Detail",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                    text = "Extracted Colors",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.Start)
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = entry.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Text(
-                    text = formattedTime,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                entry.media.forEach { mediaItem ->
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth().height(300.dp)
-                        ) {
-                            Image(
-                                painter = rememberAsyncImagePainter(mediaItem.imageUri),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        mediaItem.colors.firstOrNull()?.let { colorInt ->
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(mediaItem.colors) { colorInt ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(
                                 modifier = Modifier
-                                    .padding(12.dp)
-                                    .size(24.dp)
-                                    .align(Alignment.TopEnd)
+                                    .size(56.dp)
                                     .clip(CircleShape)
                                     .background(Color(colorInt))
-                                    .border(2.dp, Color.White, CircleShape)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "#%06X".format(0xFFFFFF and colorInt),
+                                style = MaterialTheme.typography.labelSmall
                             )
                         }
                     }
                 }
+            }
+        }
+    }
 
-                if (!entry.observation.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(24.dp))
+    Scaffold { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .safeDrawingPadding()
+                .padding(16.dp)
+        ) {
+            // 1. Scrollable Content Area with Draggable Scrollbar
+            val mainScrollState = rememberScrollState()
+            Box(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(mainScrollState)
+                        .padding(end = 12.dp) // Space for draggable thumb
+                ) {
                     Text(
-                        text = "Observations",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "Entry Detail",
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = entry.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                     
-                    // 2. Internally Scrollable Observation Box with Draggable Scrollbar
-                    val obsScrollState = rememberScrollState()
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 200.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-                    ) {
+                    Text(
+                        text = formattedTime,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    entry.media.forEach { mediaItem ->
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(300.dp)
+                                .clickable { selectedMediaItem = mediaItem }
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(mediaItem.imageUri),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+
+                                if (mediaItem.colors.isNotEmpty()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(40.dp)
+                                            .align(Alignment.BottomCenter)
+                                    ) {
+                                        mediaItem.colors.take(3).forEach { colorInt ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight()
+                                                    .background(Color(colorInt))
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!entry.observation.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "Observations",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // 2. Internally Scrollable Observation Box with Draggable Scrollbar
+                        val obsScrollState = rememberScrollState()
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp)
-                                .verticalScroll(obsScrollState)
-                                .padding(end = 12.dp) // Space for draggable thumb
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
                         ) {
-                            Text(
-                                text = entry.observation,
-                                style = MaterialTheme.typography.bodyLarge
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(12.dp)
+                                    .verticalScroll(obsScrollState)
+                                    .padding(end = 12.dp) // Space for draggable thumb
+                            ) {
+                                Text(
+                                    text = entry.observation,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                            
+                            DraggableScrollbar(
+                                scrollState = obsScrollState,
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .padding(end = 2.dp, top = 4.dp, bottom = 4.dp),
+                                thumbHeight = 40.dp
                             )
                         }
-                        
-                        DraggableScrollbar(
-                            scrollState = obsScrollState,
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 2.dp, top = 4.dp, bottom = 4.dp),
-                            thumbHeight = 40.dp
-                        )
                     }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                DraggableScrollbar(
+                    scrollState = mainScrollState,
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    thumbHeight = 80.dp
+                )
             }
-            
-            DraggableScrollbar(
-                scrollState = mainScrollState,
-                modifier = Modifier.align(Alignment.CenterEnd),
-                thumbHeight = 80.dp
-            )
-        }
 
-        // 3. Fixed Bottom Action Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Back",
-                modifier = Modifier.clickable { onBack() },
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Row {
+            // 3. Fixed Bottom Action Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "Edit",
-                    modifier = Modifier.clickable { onEdit() },
+                    text = "Back",
+                    modifier = Modifier.clickable { onBack() },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Spacer(modifier = Modifier.width(24.dp))
-                Text(
-                    text = "Delete",
-                    color = Color.Red,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.clickable { showDeleteDialog = true }
-                )
+
+                Row {
+                    Text(
+                        text = "Edit",
+                        modifier = Modifier.clickable { onEdit() },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(24.dp))
+                    Text(
+                        text = "Delete",
+                        color = Color.Red,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.clickable { showDeleteDialog = true }
+                    )
+                }
             }
         }
     }

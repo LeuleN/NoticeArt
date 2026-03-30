@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -16,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,15 +26,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
-import kotlin.math.max
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +44,8 @@ fun ColorCaptureScreen(
     var capturedColors by rememberSaveable { mutableStateOf(initialColors) }
     var isEyedropperActive by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val bitmap = remember(imageUri) {
         try {
@@ -73,7 +74,8 @@ fun ColorCaptureScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -101,7 +103,6 @@ fun ColorCaptureScreen(
                                 detectTapGestures { offset ->
                                     bitmap?.let { b ->
                                         try {
-                                            // Calculate actual pixel position considering ContentScale.Fit
                                             val viewWidth = size.width.toFloat()
                                             val viewHeight = size.height.toFloat()
                                             val bmpWidth = b.width.toFloat()
@@ -118,7 +119,14 @@ fun ColorCaptureScreen(
                                                 val bitmapX = ((offset.x - left) / scale).toInt().coerceIn(0, b.width - 1)
                                                 val bitmapY = ((offset.y - top) / scale).toInt().coerceIn(0, b.height - 1)
                                                 val pixel = b.getPixel(bitmapX, bitmapY)
-                                                capturedColors = capturedColors + pixel
+                                                
+                                                if (capturedColors.contains(pixel)) {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("Color already captured")
+                                                    }
+                                                } else {
+                                                    capturedColors = capturedColors + pixel
+                                                }
                                             }
                                         } catch (e: Exception) {}
                                     }
@@ -168,12 +176,38 @@ fun ColorCaptureScreen(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     ) {
                         Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(CircleShape)
-                                .background(Color(colorInt))
-                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                        )
+                            contentAlignment = Alignment.TopEnd,
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(Color(colorInt))
+                                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            )
+                            
+                            // Delete button (overlay X)
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = 4.dp, y = (-4).dp)
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                    .clickable {
+                                        capturedColors = capturedColors.filter { it != colorInt }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove Color",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
                         Text(
                             text = "#%06X".format(0xFFFFFF and colorInt),
                             style = MaterialTheme.typography.labelSmall,
