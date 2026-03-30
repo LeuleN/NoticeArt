@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -209,7 +210,7 @@ fun EntryDetailScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(40.dp)
+                                            .height(60.dp)
                                             .align(Alignment.BottomCenter)
                                     ) {
                                         mediaItem.colors.take(3).forEach { colorInt ->
