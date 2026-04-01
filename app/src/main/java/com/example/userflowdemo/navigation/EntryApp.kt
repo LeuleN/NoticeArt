@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.userflowdemo.Entry
 import com.example.userflowdemo.EntryViewModel
@@ -19,13 +20,22 @@ import com.example.userflowdemo.ui.EntryDetailScreen
 import com.example.userflowdemo.ui.HomeScreen
 import com.example.userflowdemo.ui.ImageMediaScreen
 import com.example.userflowdemo.ui.NewEntryScreen
+import com.example.userflowdemo.ui.WelcomeScreen
+import com.example.userflowdemo.utils.PreferenceManager
 import com.example.userflowdemo.utils.isDraftEmpty
 
 @Composable
 fun EntryApp(
     viewModel: EntryViewModel = viewModel()
 ) {
-    var currentScreen by rememberSaveable { mutableStateOf("home") }
+    val context = LocalContext.current
+    val preferenceManager = remember { PreferenceManager(context) }
+    
+    var currentScreen by rememberSaveable { 
+        mutableStateOf(if (preferenceManager.hasOnboarded()) "home" else "welcome") 
+    }
+    
+    var userName by remember { mutableStateOf(preferenceManager.getUserName()) }
     var selectedEntry by remember { mutableStateOf<Entry?>(null) }
     var isEditing by rememberSaveable { mutableStateOf(false) }
     var editingMediaIndex by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -70,8 +80,19 @@ fun EntryApp(
     }
 
     when (currentScreen) {
+        "welcome" -> {
+            WelcomeScreen(
+                onNameSubmitted = { name ->
+                    preferenceManager.saveUserName(name)
+                    preferenceManager.setOnboardingCompleted()
+                    userName = name
+                    currentScreen = "home"
+                }
+            )
+        }
         "home" -> {
             HomeScreen(
+                userName = userName,
                 entries = entries,
                 draft = draft,
                 snackbarHostState = snackbarHostState,

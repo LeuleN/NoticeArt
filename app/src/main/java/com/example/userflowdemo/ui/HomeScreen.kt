@@ -42,6 +42,7 @@ import com.example.userflowdemo.components.GridScrollbar
  */
 @Composable
 fun HomeScreen(
+    userName: String,
     entries: List<Entry>,
     draft: Entry?,
     snackbarHostState: SnackbarHostState,
@@ -90,7 +91,7 @@ fun HomeScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            HomeHeader(userName = "Georgia")
+            HomeHeader(userName = userName)
 
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 16.dp),
