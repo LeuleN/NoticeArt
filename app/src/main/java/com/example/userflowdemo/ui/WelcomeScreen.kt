@@ -19,6 +19,8 @@ fun WelcomeScreen(
     onNameSubmitted: (String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
+    val maxChar = 20
+    val isNameEmpty = name.isBlank()
 
     Box(
         modifier = Modifier
@@ -47,7 +49,6 @@ fun WelcomeScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize = 48.sp
                 )
-                // Simplified "eye" icon using text for minimal complexity as requested
                 Text(
                     text = "👁",
                     fontSize = 32.sp,
@@ -63,48 +64,71 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            TextField(
-                value = name,
-                onValueChange = { name = it },
-                placeholder = { 
-                    Text(
-                        "Enter your name", 
-                        modifier = Modifier.fillMaxWidth(),
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                TextField(
+                    value = name,
+                    onValueChange = { 
+                        if (it.length <= maxChar) {
+                            name = it 
+                        }
+                    },
+                    placeholder = { 
+                        Text(
+                            "Enter your name", 
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium)
+                        ) 
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    ),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(
                         textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium)
-                    ) 
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Black,
-                    unfocusedIndicatorColor = Color.Black,
-                    cursorColor = Color.Black
-                ),
-                textStyle = MaterialTheme.typography.headlineSmall.copy(
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Medium
-                ),
-                singleLine = true
-            )
+                        fontWeight = FontWeight.Medium
+                    ),
+                    singleLine = true
+                )
+                
+                if (isNameEmpty) {
+                    Text(
+                        text = "Please enter your name",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                } else {
+                    Text(
+                        text = "${name.length} / $maxChar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(64.dp))
 
             TextButton(
                 onClick = {
-                    if (name.isNotBlank()) {
+                    if (!isNameEmpty) {
                         onNameSubmitted(name.trim())
                     }
                 },
+                enabled = !isNameEmpty,
                 modifier = Modifier.padding(bottom = 120.dp)
             ) {
                 Text(
                     text = "NEXT",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = if (isNameEmpty) Color.Gray else MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -121,6 +145,9 @@ fun WelcomeScreen(
 
 @Composable
 fun WaveDecoration(modifier: Modifier = Modifier) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+
     val waveShape1 = GenericShape { size, _ ->
         moveTo(0f, size.height * 0.7f)
         cubicTo(
@@ -152,8 +179,8 @@ fun WaveDecoration(modifier: Modifier = Modifier) {
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFD0D8FF).copy(alpha = 0.5f),
-                            Color(0xFFB8C1FF)
+                            Color(0xFFD0E2FF).copy(alpha = 0.5f),
+                            Color(0xFFD0E2FF)
                         )
                     ),
                     shape = waveShape1
