@@ -51,7 +51,8 @@ fun NewEntryScreen(
     onBackToDetail: () -> Unit,
     onAutoSave: () -> Unit,
     onNavigateToImageMedia: (Int?) -> Unit,
-    onAddAudio: () -> Unit,
+    onAddAudioFromFiles: () -> Unit,
+    onRecordAudioNow: () -> Unit,
     onRemoveAudio: (String) -> Unit
 ) {
     val currentEntry = draft
@@ -60,7 +61,9 @@ fun NewEntryScreen(
     var showError by rememberSaveable { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
+    var showAudioOptionsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
+    val audioSheetState = rememberModalBottomSheetState()
 
     val mediaItems = currentEntry?.media ?: emptyList()
     val audioUris = currentEntry?.audioUris ?: emptyList()
@@ -186,7 +189,7 @@ fun NewEntryScreen(
                                 )
                                 .clickable {
                                     showBottomSheet = false
-                                    onAddAudio()
+                                    showAudioOptionsSheet = true
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -203,35 +206,83 @@ fun NewEntryScreen(
         }
     }
 
-    if (audioUris.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(24.dp))
 
-        Text("Audio Clips", style = MaterialTheme.typography.labelLarge)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    if (showAudioOptionsSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showAudioOptionsSheet = false },
+            sheetState = audioSheetState
         ) {
-            audioUris.forEachIndexed { index, uri ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Audio ${index + 1}",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp, top = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Add Audio",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
 
-                        TextButton(onClick = { onRemoveAudio(uri) }) {
-                            Text("Remove", color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Add from Files", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    showAudioOptionsSheet = false
+                                    onAddAudioFromFiles()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Add from Files",
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Record Audio Now", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    showAudioOptionsSheet = false
+                                    onRecordAudioNow()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Mic,
+                                contentDescription = "Record Audio Now",
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 package com.example.userflowdemo.navigation
 
+import com.example.userflowdemo.ui.RecordAudioScreen
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -168,11 +169,25 @@ fun EntryApp(
                     editingMediaIndex = index
                     currentScreen = "imageMedia"
                 },
-                onAddAudio = {
+                onAddAudioFromFiles = {
                     audioPicker.launch(arrayOf("audio/*"))
+                },
+                onRecordAudioNow = {
+                    currentScreen = "recordAudio"
                 },
                 onRemoveAudio = { uri ->
                     viewModel.removeAudioUri(uri)
+                }
+            )
+        }
+        "recordAudio" -> {
+            RecordAudioScreen(
+                onConfirm = { uri ->
+                    viewModel.addAudioUri(uri)
+                    currentScreen = "newEntry"
+                },
+                onBack = {
+                    currentScreen = "newEntry"
                 }
             )
         }
