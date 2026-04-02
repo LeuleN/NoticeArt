@@ -50,6 +50,14 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.Entry
 import com.example.userflowdemo.MediaItem
 import com.example.userflowdemo.components.DraggableScrollbar
+import android.media.MediaPlayer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.DisposableEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +76,17 @@ fun EntryDetailScreen(
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
     // skipPartiallyExpanded ensures the sheet opens to its full content height immediately
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val context = LocalContext.current
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var playingAudioIndex by remember { mutableStateOf<Int?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayer?.release()
+            mediaPlayer = null
+        }
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -221,6 +240,71 @@ fun EntryDetailScreen(
                                                     .background(Color(colorInt))
                                             )
                                         }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (entry.audioUris.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "Audio Clips",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        entry.audioUris.forEachIndexed { index, audioUri ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Audio ${index + 1}")
+
+                                    IconButton(
+                                        onClick = {
+                                            if (playingAudioIndex == index) {
+                                                mediaPlayer?.pause()
+                                                playingAudioIndex = null
+                                            } else {
+                                                mediaPlayer?.stop()
+                                                mediaPlayer?.release()
+                                                mediaPlayer = null
+
+                                                val player = MediaPlayer().apply {
+                                                    setDataSource(context, android.net.Uri.parse(audioUri))
+                                                    prepare()
+                                                    start()
+                                                    setOnCompletionListener {
+                                                        playingAudioIndex = null
+                                                        mediaPlayer?.release()
+                                                        mediaPlayer = null
+                                                    }
+                                                }
+
+                                                mediaPlayer = player
+                                                playingAudioIndex = index
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = if (playingAudioIndex == index) {
+                                                Icons.Default.Pause
+                                            } else {
+                                                Icons.Default.PlayArrow
+                                            },
+                                            contentDescription = if (playingAudioIndex == index) "Pause audio" else "Play audio"
+                                        )
                                     }
                                 }
                             }

@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 
 @Database(
     entities = [Entry::class],
-    version = 103 // Incrementing version for the schema change
+    version = 104 // Incrementing version for the schema change
 )
 @TypeConverters(Converters::class)
 abstract class EntryDatabase : RoomDatabase() {

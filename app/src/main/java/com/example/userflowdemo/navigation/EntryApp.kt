@@ -23,6 +23,10 @@ import com.example.userflowdemo.ui.NewEntryScreen
 import com.example.userflowdemo.ui.WelcomeScreen
 import com.example.userflowdemo.utils.PreferenceManager
 import com.example.userflowdemo.utils.isDraftEmpty
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 @Composable
 fun EntryApp(
@@ -76,6 +80,18 @@ fun EntryApp(
                 currentScreen = "newEntry"
             }
             recentlyDiscardedDraft = null
+        }
+    }
+
+    val audioPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            viewModel.addAudioUri(it.toString())
         }
     }
 
@@ -151,6 +167,12 @@ fun EntryApp(
                 onNavigateToImageMedia = { index ->
                     editingMediaIndex = index
                     currentScreen = "imageMedia"
+                },
+                onAddAudio = {
+                    audioPicker.launch(arrayOf("audio/*"))
+                },
+                onRemoveAudio = { uri ->
+                    viewModel.removeAudioUri(uri)
                 }
             )
         }

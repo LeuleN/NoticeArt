@@ -49,7 +49,9 @@ fun NewEntryScreen(
     onBackToHome: () -> Unit,
     onBackToDetail: () -> Unit,
     onAutoSave: () -> Unit,
-    onNavigateToImageMedia: (Int?) -> Unit
+    onNavigateToImageMedia: (Int?) -> Unit,
+    onAddAudio: () -> Unit,
+    onRemoveAudio: (String) -> Unit
 ) {
     val currentEntry = draft
     var title by rememberSaveable(currentEntry?.id) { mutableStateOf(currentEntry?.title ?: "") }
@@ -60,7 +62,7 @@ fun NewEntryScreen(
     val sheetState = rememberModalBottomSheetState()
 
     val mediaItems = currentEntry?.media ?: emptyList()
-    
+    val audioUris = currentEntry?.audioUris ?: emptyList()
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner) {
@@ -135,28 +137,101 @@ fun NewEntryScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(24.dp))
-                
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Add Image", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Add Image", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    showBottomSheet = false
+                                    onNavigateToImageMedia(-1)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.PhotoCamera,
+                                contentDescription = "Add Image",
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Add Audio", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    showBottomSheet = false
+                                    onAddAudio()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Add Audio",
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (audioUris.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("Audio Clips", style = MaterialTheme.typography.labelLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            audioUris.forEachIndexed { index, uri ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
                         modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
-                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                            .clickable {
-                                showBottomSheet = false
-                                onNavigateToImageMedia(-1)
-                            },
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.PhotoCamera,
-                            contentDescription = "Add Image",
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                        Text(
+                            text = "Audio ${index + 1}",
+                            style = MaterialTheme.typography.bodyLarge
                         )
+
+                        TextButton(onClick = { onRemoveAudio(uri) }) {
+                            Text("Remove", color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
             }
@@ -347,6 +422,42 @@ fun NewEntryScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    if (audioUris.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Text("Audio Clips", style = MaterialTheme.typography.labelLarge)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            audioUris.forEachIndexed { index, uri ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Audio ${index + 1}",
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+
+                                        TextButton(onClick = { onRemoveAudio(uri) }) {
+                                            Text("Remove", color = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(

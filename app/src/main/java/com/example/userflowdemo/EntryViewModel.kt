@@ -38,13 +38,19 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createDraft(title: String = "", observation: String? = null, media: List<MediaItem> = emptyList()) {
+    fun createDraft(
+        title: String = "",
+        observation: String? = null,
+        media: List<MediaItem> = emptyList(),
+        audioUris: List<String> = emptyList()
+    ) {
         viewModelScope.launch {
             deleteDraftInternal()
             val draftEntry = Entry(
                 title = title,
                 observation = observation,
                 media = media,
+                audioUris = audioUris,
                 isDraft = true
             )
             repository.insert(draftEntry)
@@ -98,6 +104,28 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 
                 val updated = draft.copy(media = updatedMedia)
+                repository.update(updated)
+                _draft.value = updated
+            }
+        }
+    }
+
+    fun addAudioUri(uri: String) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                if (uri !in draft.audioUris) {
+                    val updated = draft.copy(audioUris = draft.audioUris + uri)
+                    repository.update(updated)
+                    _draft.value = updated
+                }
+            }
+        }
+    }
+
+    fun removeAudioUri(uri: String) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                val updated = draft.copy(audioUris = draft.audioUris.filter { it != uri })
                 repository.update(updated)
                 _draft.value = updated
             }

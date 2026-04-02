@@ -16,5 +16,6 @@ data class Entry(
     val timestamp: Long = System.currentTimeMillis(),
     val isDraft: Boolean = false,
     val media: List<MediaItem> = emptyList(),
+    val audioUris: List<String> = emptyList(),
     val observation: String? = null
 )
