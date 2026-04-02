@@ -110,6 +110,20 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun removeMediaItem(index: Int) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                val updatedMedia = draft.media.toMutableList()
+                if (index in updatedMedia.indices) {
+                    updatedMedia.removeAt(index)
+                    val updated = draft.copy(media = updatedMedia)
+                    repository.update(updated)
+                    _draft.value = updated
+                }
+            }
+        }
+    }
+
     fun addAudioUri(uri: String) {
         viewModelScope.launch {
             _draft.value?.let { draft ->

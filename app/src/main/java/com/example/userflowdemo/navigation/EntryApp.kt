@@ -165,9 +165,12 @@ fun EntryApp(
                 onAutoSave = {
                     viewModel.autoSave()
                 },
-                onNavigateToImageMedia = { index ->
+                onNavigateToImageMedia = { index: Int? ->
                     editingMediaIndex = index
                     currentScreen = "imageMedia"
+                },
+                onRemoveMedia = { index: Int ->
+                    viewModel.removeMediaItem(index)
                 },
                 onAddAudioFromFiles = {
                     audioPicker.launch(arrayOf("audio/*"))

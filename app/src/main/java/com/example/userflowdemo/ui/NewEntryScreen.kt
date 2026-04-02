@@ -8,12 +8,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -51,6 +53,7 @@ fun NewEntryScreen(
     onBackToDetail: () -> Unit,
     onAutoSave: () -> Unit,
     onNavigateToImageMedia: (Int?) -> Unit,
+    onRemoveMedia: (Int) -> Unit,
     onAddAudioFromFiles: () -> Unit,
     onRecordAudioNow: () -> Unit,
     onRemoveAudio: (String) -> Unit
@@ -435,30 +438,57 @@ fun NewEntryScreen(
                                                     .fillMaxSize()
                                                     .clip(RoundedCornerShape(16.dp))
                                                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                                                    .clickable { onNavigateToImageMedia(index) }
                                             ) {
-                                                Image(
-                                                    painter = rememberAsyncImagePainter(mediaItem.imageUri),
-                                                    contentDescription = null,
-                                                    contentScale = ContentScale.Crop,
-                                                    modifier = Modifier.fillMaxSize()
-                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clickable { onNavigateToImageMedia(index) }
+                                                ) {
+                                                    Image(
+                                                        painter = rememberAsyncImagePainter(mediaItem.imageUri),
+                                                        contentDescription = null,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
 
-                                                if (mediaItem.colors.isNotEmpty()) {
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .height(30.dp)
-                                                            .align(Alignment.BottomCenter)
-                                                    ) {
-                                                        mediaItem.colors.take(3).forEach { colorInt ->
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .weight(1f)
-                                                                    .fillMaxHeight()
-                                                                    .background(Color(colorInt))
-                                                            )
+                                                    if (mediaItem.colors.isNotEmpty()) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(30.dp)
+                                                                .align(Alignment.BottomCenter)
+                                                        ) {
+                                                            mediaItem.colors.take(3).forEach { colorInt ->
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .weight(1f)
+                                                                        .fillMaxHeight()
+                                                                        .background(Color(colorInt))
+                                                                )
+                                                            }
                                                         }
+                                                    }
+                                                }
+
+                                                // Remove Button
+                                                Surface(
+                                                    modifier = Modifier
+                                                        .align(Alignment.TopEnd)
+                                                        .padding(8.dp)
+                                                        .size(28.dp),
+                                                    shape = CircleShape,
+                                                    color = Color.White.copy(alpha = 0.8f),
+                                                    shadowElevation = 4.dp
+                                                ) {
+                                                    IconButton(
+                                                        onClick = { onRemoveMedia(index) }
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close,
+                                                            contentDescription = "Remove Media",
+                                                            modifier = Modifier.size(18.dp),
+                                                            tint = Color.Black
+                                                        )
                                                     }
                                                 }
                                             }
