@@ -1,19 +1,23 @@
 package com.example.userflowdemo.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -51,6 +55,7 @@ fun NewEntryScreen(
     onBackToDetail: () -> Unit,
     onAutoSave: () -> Unit,
     onNavigateToImageMedia: (Int?) -> Unit,
+    onRemoveMedia: (Int) -> Unit,
     onAddAudioFromFiles: () -> Unit,
     onRecordAudioNow: () -> Unit,
     onRemoveAudio: (String) -> Unit
@@ -64,6 +69,8 @@ fun NewEntryScreen(
     var showAudioOptionsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     val audioSheetState = rememberModalBottomSheetState()
+
+    var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
 
     val mediaItems = currentEntry?.media ?: emptyList()
     val audioUris = currentEntry?.audioUris ?: emptyList()
@@ -333,6 +340,10 @@ fun NewEntryScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { pendingDeleteIndex = null }
         ) {
             val mainScrollState = rememberScrollState()
             Box(modifier = Modifier.weight(1f)) {
@@ -435,30 +446,85 @@ fun NewEntryScreen(
                                                     .fillMaxSize()
                                                     .clip(RoundedCornerShape(16.dp))
                                                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                                                    .clickable { onNavigateToImageMedia(index) }
                                             ) {
-                                                Image(
-                                                    painter = rememberAsyncImagePainter(mediaItem.imageUri),
-                                                    contentDescription = null,
-                                                    contentScale = ContentScale.Crop,
-                                                    modifier = Modifier.fillMaxSize()
-                                                )
-
-                                                if (mediaItem.colors.isNotEmpty()) {
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .height(30.dp)
-                                                            .align(Alignment.BottomCenter)
-                                                    ) {
-                                                        mediaItem.colors.take(3).forEach { colorInt ->
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .weight(1f)
-                                                                    .fillMaxHeight()
-                                                                    .background(Color(colorInt))
-                                                            )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clickable { 
+                                                            pendingDeleteIndex = null
+                                                            onNavigateToImageMedia(index) 
                                                         }
+                                                ) {
+                                                    Image(
+                                                        painter = rememberAsyncImagePainter(mediaItem.imageUri),
+                                                        contentDescription = null,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+
+                                                    if (mediaItem.colors.isNotEmpty()) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(30.dp)
+                                                                .align(Alignment.BottomCenter)
+                                                        ) {
+                                                            mediaItem.colors.take(3).forEach { colorInt ->
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .weight(1f)
+                                                                        .fillMaxHeight()
+                                                                        .background(Color(colorInt))
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // Remove Button
+                                                Surface(
+                                                    modifier = Modifier
+                                                        .align(Alignment.TopEnd)
+                                                        .padding(8.dp)
+                                                        .size(28.dp),
+                                                    shape = CircleShape,
+                                                    color = Color.White.copy(alpha = 0.8f),
+                                                    shadowElevation = 4.dp
+                                                ) {
+                                                    IconButton(
+                                                        onClick = { pendingDeleteIndex = index }
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close,
+                                                            contentDescription = "Remove Media",
+                                                            modifier = Modifier.size(18.dp),
+                                                            tint = Color.Black
+                                                        )
+                                                    }
+                                                }
+
+                                                // Inline Delete Confirmation
+                                                if (pendingDeleteIndex == index) {
+                                                    Surface(
+                                                        modifier = Modifier
+                                                            .align(Alignment.TopEnd)
+                                                            .padding(top = 40.dp, end = 8.dp)
+                                                            .clickable { 
+                                                                pendingDeleteIndex = null
+                                                                onRemoveMedia(index) 
+                                                            },
+                                                        shape = RoundedCornerShape(20.dp),
+                                                        color = Color.White,
+                                                        shadowElevation = 6.dp,
+                                                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
+                                                    ) {
+                                                        Text(
+                                                            text = "Delete",
+                                                            color = Color.Red,
+                                                            fontWeight = FontWeight.Bold,
+                                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                                                            style = MaterialTheme.typography.labelLarge
+                                                        )
                                                     }
                                                 }
                                             }
