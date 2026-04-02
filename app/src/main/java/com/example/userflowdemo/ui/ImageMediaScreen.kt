@@ -1,6 +1,5 @@
 package com.example.userflowdemo.ui
 
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import android.content.Context
 import androidx.core.content.FileProvider
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.activity.result.PickVisualMediaRequest
 import java.io.File
 
 private fun createImageUri(context: Context): Uri {
@@ -60,13 +59,9 @@ fun ImageMediaScreen(
     var showImageSourceDialog by rememberSaveable { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
     val imagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
-            context.contentResolver.takePersistableUriPermission(
-                it,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
             imageUri = it.toString()
         }
     }
@@ -106,7 +101,9 @@ fun ImageMediaScreen(
                 TextButton(
                     onClick = {
                         showImageSourceDialog = false
-                        imagePicker.launch(arrayOf("image/*"))
+                        imagePicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
                     }
                 ) {
                     Text("Pick a photo from gallery")
