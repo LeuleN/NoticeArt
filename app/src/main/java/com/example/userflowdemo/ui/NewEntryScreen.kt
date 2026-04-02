@@ -2,6 +2,7 @@ package com.example.userflowdemo.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -190,7 +191,7 @@ fun NewEntryScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.Default.Add,
+                                Icons.Default.Mic,
                                 contentDescription = "Add Audio",
                                 modifier = Modifier.size(48.dp),
                                 tint = MaterialTheme.colorScheme.primary
