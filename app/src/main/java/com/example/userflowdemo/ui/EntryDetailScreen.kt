@@ -113,50 +113,13 @@ fun EntryDetailScreen(
                         .fillMaxWidth()
                         .height(300.dp)
                 ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Image(
-                            painter = rememberAsyncImagePainter(mediaItem.imageUri),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-
-                        if (mediaItem.textures.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .height(64.dp)
-                                    .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                            ) {
-                                val texturesToShow = mediaItem.textures.take(3)
-                                texturesToShow.forEachIndexed { index, texture ->
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .fillMaxHeight()
-                                    ) {
-                                        Image(
-                                            painter = rememberAsyncImagePainter(texture.imageUri),
-                                            contentDescription = texture.name,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-
-                                        if (index != texturesToShow.lastIndex) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .align(Alignment.CenterEnd)
-                                                    .width(2.dp)
-                                                    .fillMaxHeight()
-                                                    .background(Color.Black)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // Full Image Preview: ONLY raw image, no overlays (FIX ISSUE 2)
+                    Image(
+                        painter = rememberAsyncImagePainter(mediaItem.imageUri),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -294,35 +257,47 @@ fun EntryDetailScreen(
                                 )
 
                                 if (mediaItem.textures.isNotEmpty()) {
-                                    Row(
+                                    Column(
                                         modifier = Modifier
                                             .align(Alignment.BottomCenter)
                                             .fillMaxWidth()
-                                            .height(64.dp)
                                             .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                     ) {
-                                        val texturesToShow = mediaItem.textures.take(3)
-                                        texturesToShow.forEachIndexed { index, texture ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight()
-                                            ) {
-                                                Image(
-                                                    painter = rememberAsyncImagePainter(texture.imageUri),
-                                                    contentDescription = texture.name,
-                                                    contentScale = ContentScale.Crop,
-                                                    modifier = Modifier.fillMaxSize()
-                                                )
-
-                                                if (index != texturesToShow.lastIndex) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .align(Alignment.CenterEnd)
-                                                            .width(2.dp)
-                                                            .fillMaxHeight()
-                                                            .background(Color.Black)
+                                        // Clear Visual Separation (FIX ISSUE 1)
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(2.dp)
+                                                .background(Color.Black)
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(64.dp)
+                                        ) {
+                                            val texturesToShow = mediaItem.textures.take(3)
+                                            texturesToShow.forEachIndexed { index, texture ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                ) {
+                                                    Image(
+                                                        painter = rememberAsyncImagePainter(texture.imageUri),
+                                                        contentDescription = texture.name,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
                                                     )
+
+                                                    if (index != texturesToShow.lastIndex) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .align(Alignment.CenterEnd)
+                                                                .width(2.dp)
+                                                                .fillMaxHeight()
+                                                                .background(Color.Black)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
