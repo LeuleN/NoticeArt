@@ -20,22 +20,27 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.userflowdemo.EntryViewModel
 import com.example.userflowdemo.Texture
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TextureCaptureScreen(
+    viewModel: EntryViewModel,
+    mediaId: String,
     imageUri: String,
-    initialTextures: List<Texture>,
-    onUpdateTextures: (List<Texture>) -> Unit,
-    onConfirm: (List<Texture>) -> Unit,
     onAddTexture: () -> Unit,
     onEditTexture: (Texture) -> Unit,
+    onConfirm: () -> Unit,
     onBack: () -> Unit
 ) {
+    val mediaItems by viewModel.mediaItems.collectAsState()
+    val mediaItem = remember(mediaItems, mediaId) { mediaItems.find { it.id == mediaId } }
+    val textures = mediaItem?.textures ?: emptyList()
+
     // Ordering logic: Custom-named textures FIRST, then default textures
-    val sortedTextures = remember(initialTextures) {
-        val (custom, default) = initialTextures.partition { it.isCustomName }
+    val sortedTextures = remember(textures) {
+        val (custom, default) = textures.partition { it.isCustomName }
         custom.sortedBy { it.name } + default.sortedBy { it.name }
     }
 
@@ -99,7 +104,7 @@ fun TextureCaptureScreen(
                     TextureItem(
                         texture = texture,
                         onDelete = {
-                            onUpdateTextures(initialTextures.filter { it.id != texture.id })
+                            viewModel.removeTextureFromImage(mediaId, texture.id)
                         },
                         onClick = { onEditTexture(texture) }
                     )
@@ -109,7 +114,7 @@ fun TextureCaptureScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             IconButton(
-                onClick = { onConfirm(initialTextures) },
+                onClick = onConfirm,
                 modifier = Modifier
                     .size(64.dp)
                     .background(MaterialTheme.colorScheme.primary, CircleShape)

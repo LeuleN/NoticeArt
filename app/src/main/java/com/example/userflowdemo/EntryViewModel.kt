@@ -23,6 +23,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     private val _draft = MutableStateFlow<Entry?>(null)
     val draft: StateFlow<Entry?> = _draft
 
+    val mediaItems: StateFlow<List<MediaItem>> = _draft
+        .map { it?.media ?: emptyList() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     private var editingOriginalId: Long? = null
     private var originalEntrySnapshot: Entry? = null
 
@@ -75,8 +83,8 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _draft.value?.let {
                 val updated = it.copy(title = title)
-                repository.update(updated)
                 _draft.value = updated
+                repository.update(updated)
             }
         }
     }
@@ -85,13 +93,13 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _draft.value?.let {
                 val updated = it.copy(observation = observation)
-                repository.update(updated)
                 _draft.value = updated
+                repository.update(updated)
             }
         }
     }
 
-    fun addOrUpdateMediaItem(uri: String, colors: List<Int>, textures: List<Texture> = emptyList(), index: Int? = null) {
+    fun addOrUpdateMediaItem(uri: String, colors: List<Int>, textures: List<Texture> = emptyList(), index: Int? = null, mediaId: String? = null) {
         viewModelScope.launch {
             _draft.value?.let { draft ->
                 val updatedMedia = draft.media.toMutableList()
@@ -99,13 +107,56 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 if (index != null && index in updatedMedia.indices) {
                     val existingItem = updatedMedia[index]
                     updatedMedia[index] = existingItem.copy(imageUri = uri, colors = colors, textures = textures)
+                } else if (mediaId != null) {
+                    val existingIndex = updatedMedia.indexOfFirst { it.id == mediaId }
+                    if (existingIndex != -1) {
+                        updatedMedia[existingIndex] = updatedMedia[existingIndex].copy(imageUri = uri, colors = colors, textures = textures)
+                    } else {
+                        updatedMedia.add(MediaItem(id = mediaId, imageUri = uri, colors = colors, textures = textures))
+                    }
                 } else {
                     updatedMedia.add(MediaItem(imageUri = uri, colors = colors, textures = textures))
                 }
                 
                 val updated = draft.copy(media = updatedMedia)
-                repository.update(updated)
                 _draft.value = updated
+                repository.update(updated)
+            }
+        }
+    }
+
+    fun addTextureToImage(mediaId: String, texture: Texture) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                val updatedMedia = draft.media.map { item ->
+                    if (item.id == mediaId) {
+                        val exists = item.textures.any { it.id == texture.id }
+                        val newTextures = if (exists) {
+                            item.textures.map { if (it.id == texture.id) texture else it }
+                        } else {
+                            item.textures + texture
+                        }
+                        item.copy(textures = newTextures)
+                    } else item
+                }
+                val updated = draft.copy(media = updatedMedia)
+                _draft.value = updated
+                repository.update(updated)
+            }
+        }
+    }
+
+    fun removeTextureFromImage(mediaId: String, textureId: String) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                val updatedMedia = draft.media.map { item ->
+                    if (item.id == mediaId) {
+                        item.copy(textures = item.textures.filter { it.id != textureId })
+                    } else item
+                }
+                val updated = draft.copy(media = updatedMedia)
+                _draft.value = updated
+                repository.update(updated)
             }
         }
     }
@@ -118,8 +169,8 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     val currentItem = updatedMedia[mediaIndex]
                     updatedMedia[mediaIndex] = currentItem.copy(textures = textures)
                     val updated = draft.copy(media = updatedMedia)
-                    repository.update(updated)
                     _draft.value = updated
+                    repository.update(updated)
                 }
             }
         }
@@ -132,8 +183,8 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 if (index in updatedMedia.indices) {
                     updatedMedia.removeAt(index)
                     val updated = draft.copy(media = updatedMedia)
-                    repository.update(updated)
                     _draft.value = updated
+                    repository.update(updated)
                 }
             }
         }
@@ -144,8 +195,8 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             _draft.value?.let { draft ->
                 if (uri !in draft.audioUris) {
                     val updated = draft.copy(audioUris = draft.audioUris + uri)
-                    repository.update(updated)
                     _draft.value = updated
+                    repository.update(updated)
                 }
             }
         }
@@ -155,8 +206,8 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _draft.value?.let { draft ->
                 val updated = draft.copy(audioUris = draft.audioUris.filter { it != uri })
-                repository.update(updated)
                 _draft.value = updated
+                repository.update(updated)
             }
         }
     }

@@ -40,21 +40,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import com.example.userflowdemo.CropRect
+import com.example.userflowdemo.EntryViewModel
 import com.example.userflowdemo.Texture
 import java.io.File
 import java.io.FileOutputStream
 import java.util.*
-import kotlin.math.roundToInt
 
 private enum class CropMode { NONE, MOVE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CropTextureScreen(
+    viewModel: EntryViewModel,
+    mediaId: String,
     imageUri: String,
     existingTexture: Texture?,
     textureCount: Int,
-    onConfirm: (Texture) -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -74,7 +75,7 @@ fun CropTextureScreen(
         } catch (e: Exception) { null }
     }
 
-    // State in pixels. Initial value from DB might be normalized (0..1) or pixels.
+    // State in pixels.
     var cropRect by remember {
         mutableStateOf(existingTexture?.cropRect ?: CropRect(0.2f, 0.2f, 0.8f, 0.8f))
     }
@@ -86,12 +87,20 @@ fun CropTextureScreen(
     // Convert normalized to pixels once imageSize is known
     LaunchedEffect(imageSize) {
         if (imageSize.width > 0 && cropRect.left <= 1f && cropRect.right <= 1f) {
-            cropRect = CropRect(
-                left = cropRect.left * imageSize.width,
-                top = cropRect.top * imageSize.height,
-                right = cropRect.right * imageSize.width,
-                bottom = cropRect.bottom * imageSize.height
-            )
+            val isDefault = cropRect.left == 0.2f && cropRect.top == 0.2f && cropRect.right == 0.8f && cropRect.bottom == 0.8f
+            if (isDefault) {
+                val size = Math.min(imageSize.width, imageSize.height) * 0.6f
+                val left = (imageSize.width - size) / 2f
+                val top = (imageSize.height - size) / 2f
+                cropRect = CropRect(left, top, left + size, top + size)
+            } else {
+                cropRect = CropRect(
+                    left = cropRect.left * imageSize.width,
+                    top = cropRect.top * imageSize.height,
+                    right = cropRect.right * imageSize.width,
+                    bottom = cropRect.bottom * imageSize.height
+                )
+            }
         }
     }
 
@@ -232,13 +241,16 @@ fun CropTextureScreen(
                             cropped.compress(Bitmap.CompressFormat.PNG, 100, out)
                         }
                         
-                        onConfirm(Texture(
+                        val texture = Texture(
                             id = existingTexture?.id ?: UUID.randomUUID().toString(),
                             imageUri = Uri.fromFile(file).toString(),
                             name = typedName.ifBlank { placeholderName },
                             isCustomName = typedName.isNotBlank(),
                             cropRect = cropRect
-                        ))
+                        )
+                        
+                        viewModel.addTextureToImage(mediaId, texture)
+                        onBack()
                     } catch (e: Exception) {
                         Toast.makeText(context, "Crop failed: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
@@ -325,20 +337,40 @@ private fun CropOverlay(
                                 newBottom = newTop + height
                             }
                             CropMode.TOP_LEFT -> {
-                                newLeft = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize)
-                                newTop = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
+                                val drag = if (Math.abs(dragAmount.x) > Math.abs(dragAmount.y)) dragAmount.x else dragAmount.y
+                                val maxPossibleSize = Math.min(currentRect.right, currentRect.bottom)
+                                val newSize = (currentRect.right - currentRect.left - drag).coerceIn(minSize, maxPossibleSize)
+                                newLeft = currentRect.right - newSize
+                                newTop = currentRect.bottom - newSize
+                                newRight = currentRect.right
+                                newBottom = currentRect.bottom
                             }
                             CropMode.TOP_RIGHT -> {
-                                newRight = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, imageSize.width)
-                                newTop = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
+                                val drag = if (Math.abs(dragAmount.x) > Math.abs(dragAmount.y)) dragAmount.x else -dragAmount.y
+                                val maxPossibleSize = Math.min(imageSize.width - currentRect.left, currentRect.bottom)
+                                val newSize = (currentRect.right - currentRect.left + drag).coerceIn(minSize, maxPossibleSize)
+                                newLeft = currentRect.left
+                                newTop = currentRect.bottom - newSize
+                                newRight = currentRect.left + newSize
+                                newBottom = currentRect.bottom
                             }
                             CropMode.BOTTOM_LEFT -> {
-                                newLeft = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize)
-                                newBottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, imageSize.height)
+                                val drag = if (Math.abs(dragAmount.x) > Math.abs(dragAmount.y)) -dragAmount.x else dragAmount.y
+                                val maxPossibleSize = Math.min(currentRect.right, imageSize.height - currentRect.top)
+                                val newSize = (currentRect.right - currentRect.left + drag).coerceIn(minSize, maxPossibleSize)
+                                newLeft = currentRect.right - newSize
+                                newTop = currentRect.top
+                                newRight = currentRect.right
+                                newBottom = currentRect.top + newSize
                             }
                             CropMode.BOTTOM_RIGHT -> {
-                                newRight = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, imageSize.width)
-                                newBottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, imageSize.height)
+                                val drag = if (Math.abs(dragAmount.x) > Math.abs(dragAmount.y)) dragAmount.x else dragAmount.y
+                                val maxPossibleSize = Math.min(imageSize.width - currentRect.left, imageSize.height - currentRect.top)
+                                val newSize = (currentRect.right - currentRect.left + drag).coerceIn(minSize, maxPossibleSize)
+                                newLeft = currentRect.left
+                                newTop = currentRect.top
+                                newRight = currentRect.left + newSize
+                                newBottom = currentRect.top + newSize
                             }
                             else -> {}
                         }

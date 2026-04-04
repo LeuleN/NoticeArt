@@ -31,6 +31,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.example.userflowdemo.Texture
 import com.example.userflowdemo.ui.TextureCaptureScreen
 import com.example.userflowdemo.ui.CropTextureScreen
+import java.util.UUID
 
 @Composable
 fun EntryApp(
@@ -47,6 +48,7 @@ fun EntryApp(
     var selectedEntry by remember { mutableStateOf<Entry?>(null) }
     var isEditing by rememberSaveable { mutableStateOf(false) }
     var editingMediaIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+    var currentMediaId by rememberSaveable { mutableStateOf<String?>(null) }
     var colorCaptureUri by rememberSaveable { mutableStateOf<String?>(null) }
     var textureCaptureUri by rememberSaveable { mutableStateOf<String?>(null) }
     
@@ -174,6 +176,9 @@ fun EntryApp(
                 },
                 onNavigateToImageMedia = { index: Int? ->
                     editingMediaIndex = index
+                    currentMediaId = if (index != null && index >= 0) {
+                        draft?.media?.getOrNull(index)?.id
+                    } else null
                     currentScreen = "imageMedia"
                 },
                 onRemoveMedia = { index: Int ->
@@ -202,44 +207,61 @@ fun EntryApp(
             )
         }
         "imageMedia" -> {
-            val mediaItem = editingMediaIndex?.let { index ->
-                if (index >= 0) draft?.media?.getOrNull(index) else null
+            val mediaItem = if (editingMediaIndex != null && editingMediaIndex!! >= 0) {
+                draft?.media?.getOrNull(editingMediaIndex!!)
+            } else {
+                draft?.media?.find { it.id == currentMediaId }
             }
             ImageMediaScreen(
                 initialImageUri = mediaItem?.imageUri,
                 initialColors = mediaItem?.colors ?: emptyList(),
                 initialTextures = mediaItem?.textures ?: emptyList(),
                 onConfirm = { uri, colors, textures ->
-                    viewModel.addOrUpdateMediaItem(uri, colors, textures, editingMediaIndex?.takeIf { it >= 0 })
+                    viewModel.addOrUpdateMediaItem(uri, colors, textures, editingMediaIndex?.takeIf { it >= 0 }, currentMediaId)
                     editingMediaIndex = null
+                    currentMediaId = null
                     currentScreen = "newEntry"
                 },
                 onColorCapture = { uri ->
                     colorCaptureUri = uri
+                    if (editingMediaIndex == -1 && currentMediaId == null) {
+                        val newId = UUID.randomUUID().toString()
+                        currentMediaId = newId
+                        viewModel.addOrUpdateMediaItem(uri, emptyList(), emptyList(), mediaId = newId)
+                    }
                     currentScreen = "colorCapture"
                 },
                 onTextureCapture = { uri ->
                     textureCaptureUri = uri
+                    if (editingMediaIndex == -1 && currentMediaId == null) {
+                        val newId = UUID.randomUUID().toString()
+                        currentMediaId = newId
+                        viewModel.addOrUpdateMediaItem(uri, emptyList(), emptyList(), mediaId = newId)
+                    }
                     currentScreen = "textureCapture"
                 },
                 onBack = {
                     editingMediaIndex = null
+                    currentMediaId = null
                     currentScreen = "newEntry"
                 }
             )
         }
         "colorCapture" -> {
-            val mediaItem = editingMediaIndex?.let { index ->
-                if (index >= 0) draft?.media?.getOrNull(index) else null
+            val mediaItem = if (editingMediaIndex != null && editingMediaIndex!! >= 0) {
+                draft?.media?.getOrNull(editingMediaIndex!!)
+            } else {
+                draft?.media?.find { it.id == currentMediaId }
             }
             colorCaptureUri?.let { uri ->
                 ColorCaptureScreen(
                     imageUri = uri,
                     initialColors = mediaItem?.colors ?: emptyList(),
                     onConfirm = { colors ->
-                        viewModel.addOrUpdateMediaItem(uri, colors, mediaItem?.textures ?: emptyList(), editingMediaIndex?.takeIf { it >= 0 })
+                        viewModel.addOrUpdateMediaItem(uri, colors, mediaItem?.textures ?: emptyList(), editingMediaIndex?.takeIf { it >= 0 }, currentMediaId)
                         colorCaptureUri = null
                         editingMediaIndex = null
+                        currentMediaId = null
                         currentScreen = "newEntry"
                     },
                     onBack = {
@@ -250,21 +272,17 @@ fun EntryApp(
             }
         }
         "textureCapture" -> {
-            val mediaItem = editingMediaIndex?.let { index ->
-                if (index >= 0) draft?.media?.getOrNull(index) else null
+            val mediaId = if (editingMediaIndex != null && editingMediaIndex!! >= 0) {
+                draft?.media?.getOrNull(editingMediaIndex!!)?.id
+            } else {
+                currentMediaId
             }
-            textureCaptureUri?.let { uri ->
+            
+            if (mediaId != null && textureCaptureUri != null) {
                 TextureCaptureScreen(
-                    imageUri = uri,
-                    initialTextures = mediaItem?.textures ?: emptyList(),
-                    onUpdateTextures = { textures ->
-                        viewModel.updateTextures(editingMediaIndex!!, textures)
-                    },
-                    onConfirm = { textures ->
-                        viewModel.updateTextures(editingMediaIndex!!, textures)
-                        textureCaptureUri = null
-                        currentScreen = "imageMedia"
-                    },
+                    viewModel = viewModel,
+                    mediaId = mediaId,
+                    imageUri = textureCaptureUri!!,
                     onAddTexture = {
                         textureToEdit = null
                         currentScreen = "cropTexture"
@@ -272,6 +290,10 @@ fun EntryApp(
                     onEditTexture = { texture ->
                         textureToEdit = texture
                         currentScreen = "cropTexture"
+                    },
+                    onConfirm = {
+                        textureCaptureUri = null
+                        currentScreen = "imageMedia"
                     },
                     onBack = {
                         textureCaptureUri = null
@@ -281,25 +303,19 @@ fun EntryApp(
             }
         }
         "cropTexture" -> {
-            val mediaItem = editingMediaIndex?.let { index ->
-                if (index >= 0) draft?.media?.getOrNull(index) else null
+            val mediaId = if (editingMediaIndex != null && editingMediaIndex!! >= 0) {
+                draft?.media?.getOrNull(editingMediaIndex!!)?.id
+            } else {
+                currentMediaId
             }
-            textureCaptureUri?.let { uri ->
+            
+            if (mediaId != null && textureCaptureUri != null) {
                 CropTextureScreen(
-                    imageUri = uri,
+                    viewModel = viewModel,
+                    mediaId = mediaId,
+                    imageUri = textureCaptureUri!!,
                     existingTexture = textureToEdit,
-                    textureCount = mediaItem?.textures?.size ?: 0,
-                    onConfirm = { texture ->
-                        val currentTextures = mediaItem?.textures ?: emptyList()
-                        val updatedTextures = if (textureToEdit != null) {
-                            currentTextures.map { if (it.id == textureToEdit!!.id) texture else it }
-                        } else {
-                            currentTextures + texture
-                        }
-                        viewModel.updateTextures(editingMediaIndex!!, updatedTextures)
-                        textureToEdit = null
-                        currentScreen = "textureCapture"
-                    },
+                    textureCount = draft?.media?.find { it.id == mediaId }?.textures?.size ?: 0,
                     onBack = {
                         textureToEdit = null
                         currentScreen = "textureCapture"
