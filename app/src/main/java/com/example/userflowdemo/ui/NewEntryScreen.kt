@@ -462,7 +462,25 @@ fun NewEntryScreen(
                                                         modifier = Modifier.fillMaxSize()
                                                     )
 
-                                                    if (mediaItem.colors.isNotEmpty()) {
+                                                    if (mediaItem.textures.isNotEmpty()) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(30.dp)
+                                                                .align(Alignment.BottomCenter)
+                                                        ) {
+                                                            mediaItem.textures.take(3).forEach { texture ->
+                                                                Image(
+                                                                    painter = rememberAsyncImagePainter(texture.imageUri),
+                                                                    contentDescription = texture.name,
+                                                                    contentScale = ContentScale.Crop,
+                                                                    modifier = Modifier
+                                                                        .weight(1f)
+                                                                        .fillMaxHeight()
+                                                                )
+                                                            }
+                                                        }
+                                                    } else if (mediaItem.colors.isNotEmpty()) {
                                                         Row(
                                                             modifier = Modifier
                                                                 .fillMaxWidth()

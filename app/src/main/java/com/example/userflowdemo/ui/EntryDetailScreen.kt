@@ -74,7 +74,6 @@ fun EntryDetailScreen(
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedMediaItem by remember { mutableStateOf<MediaItem?>(null) }
-    // skipPartiallyExpanded ensures the sheet opens to its full content height immediately
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val context = LocalContext.current
@@ -109,7 +108,6 @@ fun EntryDetailScreen(
         )
     }
 
-    // Use null-safe check to prevent crashes during dismissal
     selectedMediaItem?.let { mediaItem ->
         ModalBottomSheet(
             onDismissRequest = { selectedMediaItem = null },
@@ -118,7 +116,7 @@ fun EntryDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp), // Tightened bottom space
+                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Card(
@@ -137,33 +135,71 @@ fun EntryDetailScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Text(
-                    text = "Extracted Colors",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Start)
-                )
+                if (mediaItem.textures.isNotEmpty()) {
+                    Text(
+                        text = "Captured Textures",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(mediaItem.colors) { colorInt ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(colorInt))
-                                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "#%06X".format(0xFFFFFF and colorInt),
-                                style = MaterialTheme.typography.labelSmall
-                            )
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(mediaItem.textures) { texture ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(texture.imageUri),
+                                    contentDescription = texture.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = texture.name,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (mediaItem.colors.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text(
+                        text = "Extracted Colors",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(mediaItem.colors) { colorInt ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(colorInt))
+                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "#%06X".format(0xFFFFFF and colorInt),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
                         }
                     }
                 }
@@ -179,14 +215,13 @@ fun EntryDetailScreen(
                 .safeDrawingPadding()
                 .padding(16.dp)
         ) {
-            // 1. Scrollable Content Area with Draggable Scrollbar
             val mainScrollState = rememberScrollState()
             Box(modifier = Modifier.weight(1f)) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(mainScrollState)
-                        .padding(end = 12.dp) // Space for draggable thumb
+                        .padding(end = 12.dp)
                 ) {
                     Text(
                         text = "Entry Detail",
@@ -225,7 +260,25 @@ fun EntryDetailScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
 
-                                if (mediaItem.colors.isNotEmpty()) {
+                                if (mediaItem.textures.isNotEmpty()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(60.dp)
+                                            .align(Alignment.BottomCenter)
+                                    ) {
+                                        mediaItem.textures.take(3).forEach { texture ->
+                                            Image(
+                                                painter = rememberAsyncImagePainter(texture.imageUri),
+                                                contentDescription = texture.name,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight()
+                                            )
+                                        }
+                                    }
+                                } else if (mediaItem.colors.isNotEmpty()) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -320,7 +373,6 @@ fun EntryDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         
-                        // 2. Internally Scrollable Observation Box with Draggable Scrollbar
                         val obsScrollState = rememberScrollState()
                         Box(
                             modifier = Modifier
@@ -334,7 +386,7 @@ fun EntryDetailScreen(
                                     .fillMaxSize()
                                     .padding(12.dp)
                                     .verticalScroll(obsScrollState)
-                                    .padding(end = 12.dp) // Space for draggable thumb
+                                    .padding(end = 12.dp)
                             ) {
                                 Text(
                                     text = entry.observation,
@@ -362,7 +414,6 @@ fun EntryDetailScreen(
                 )
             }
 
-            // 3. Fixed Bottom Action Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
