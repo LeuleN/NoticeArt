@@ -18,7 +18,7 @@ class EntryPdfExporter(private val context: Context) {
 
     private val pageWidth = 595 // A4 width in points (72 dpi)
     private val pageHeight = 842 // A4 height in points (72 dpi)
-    private val margin = 40f
+    private val margin = 45f
     private val contentWidth = pageWidth - 2 * margin
 
     private var pdfDocument = PdfDocument()
@@ -41,6 +41,7 @@ class EntryPdfExporter(private val context: Context) {
         currentPage = pdfDocument.startPage(pageInfo)
         canvas = currentPage?.canvas
         currentY = margin
+        canvas?.drawColor(Color.WHITE)
     }
 
     private fun ensureSpace(heightNeeded: Float) {
@@ -56,142 +57,146 @@ class EntryPdfExporter(private val context: Context) {
         currentY = margin
         
         startNewPage()
-        val currentCanvas = canvas ?: return null
 
-        // 1. Title
+        // 1. Header
         val titlePaint = TextPaint().apply {
             isAntiAlias = true
-            textSize = 24f
+            textSize = 26f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            color = Color.BLACK
         }
         val titleLayout = createStaticLayout(entry.title, titlePaint, contentWidth.toInt())
         ensureSpace(titleLayout.height.toFloat())
         titleLayout.drawOnCanvas(canvas!!, margin, currentY)
-        currentY += titleLayout.height + 10f
+        currentY += titleLayout.height + 8f
 
-        // 2. Timestamp
-        val dateText = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault()).format(Date(entry.timestamp))
+        val dateText = SimpleDateFormat("EEEE, MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(entry.timestamp))
         val datePaint = TextPaint().apply {
             isAntiAlias = true
-            textSize = 14f
+            textSize = 12f
             color = Color.GRAY
         }
         ensureSpace(20f)
-        canvas!!.drawText(dateText, margin, currentY + 14f, datePaint)
+        canvas!!.drawText(dateText, margin, currentY + 12f, datePaint)
         currentY += 40f
 
-        // 3. Main Images
+        // 2. Main Content Images
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         entry.media.forEach { mediaItem ->
             mediaItem.imageUri?.let { uriString ->
                 val bitmap = loadBitmapFromUri(Uri.parse(uriString))
                 if (bitmap != null) {
                     val scaledBitmap = scaleBitmapToWidth(bitmap, contentWidth)
-                    ensureSpace(scaledBitmap.height.toFloat())
+                    ensureSpace(scaledBitmap.height.toFloat() + 20f)
                     canvas!!.drawBitmap(scaledBitmap, margin, currentY, paint)
-                    currentY += scaledBitmap.height + 20f
+                    currentY += scaledBitmap.height + 30f
                     scaledBitmap.recycle()
                     bitmap.recycle()
                 }
             }
         }
 
-        // 4. Textures
-        val allTextures = entry.media.flatMap { it.textures }
-        if (allTextures.isNotEmpty()) {
-            ensureSpace(40f)
+        // 3. Captured Textures Section
+        val validTextures = entry.media.flatMap { it.textures }.mapNotNull { texture ->
+            val bitmap = texture.imageUri?.let { loadBitmapFromUri(Uri.parse(it)) }
+            if (bitmap != null) texture to bitmap else null
+        }
+
+        if (validTextures.isNotEmpty()) {
+            ensureSpace(80f)
             currentY = drawSectionHeader("Captured Textures", canvas!!, currentY)
             
-            val textureSize = (contentWidth - 2 * 10f) / 3f
-            var textureX = margin
+            val textureSpacing = 15f
+            val textureSize = (contentWidth - 2 * textureSpacing) / 3f
             
-            allTextures.forEachIndexed { index, texture ->
-                if (index > 0 && index % 3 == 0) {
-                    textureX = margin
-                    currentY += textureSize + 30f
-                }
+            validTextures.chunked(3).forEach { rowTextures ->
+                ensureSpace(textureSize + 40f)
                 
-                ensureSpace(textureSize + 20f)
-                // If we jumped to a new page, reset textureX
-                if (currentY == margin) {
-                    textureX = margin
-                }
+                // Centering Logic for rows with fewer than 3 items
+                val rowWidth = (rowTextures.size * textureSize) + ((rowTextures.size - 1) * textureSpacing)
+                var textureX = margin + (contentWidth - rowWidth) / 2f
 
-                texture.imageUri?.let { uriStr ->
-                    val bitmap = loadBitmapFromUri(Uri.parse(uriStr))
-                    if (bitmap != null) {
-                        val rect = RectF(textureX, currentY, textureX + textureSize, currentY + textureSize)
-                        canvas!!.drawBitmap(bitmap, null, rect, paint)
-                        
-                        val labelPaint = TextPaint().apply { 
-                            textSize = 8f
-                            textAlign = Paint.Align.CENTER 
-                            isAntiAlias = true
-                        }
-                        canvas!!.drawText(texture.name, textureX + textureSize / 2, currentY + textureSize + 12f, labelPaint)
-                        bitmap.recycle()
+                rowTextures.forEach { (texture, bitmap) ->
+                    val rect = RectF(textureX, currentY, textureX + textureSize, currentY + textureSize)
+                    canvas!!.drawBitmap(bitmap, null, rect, paint)
+                    
+                    val labelPaint = TextPaint().apply { 
+                        textSize = 9f
+                        textAlign = Paint.Align.CENTER 
+                        isAntiAlias = true
+                        color = Color.BLACK
                     }
+                    val labelY = currentY + textureSize + 14f
+                    val displayLabel = if (texture.name.length > 18) texture.name.take(15) + "..." else texture.name
+                    canvas!!.drawText(displayLabel, textureX + textureSize / 2, labelY, labelPaint)
+                    
+                    bitmap.recycle()
+                    textureX += textureSize + textureSpacing
                 }
-                textureX += textureSize + 10f
+                currentY += textureSize + 45f
             }
-            currentY += textureSize + 40f
+            currentY += 20f
         }
 
-        // 5. Colors
+        // 4. Color Palette Section
         val allColors = entry.media.flatMap { it.colors }.distinct()
         if (allColors.isNotEmpty()) {
-            ensureSpace(40f)
-            currentY = drawSectionHeader("Extracted Colors", canvas!!, currentY)
+            ensureSpace(80f)
+            currentY = drawSectionHeader("Color Palette", canvas!!, currentY)
             
-            val swatchSize = 40f
-            val spacing = 15f
-            var swatchX = margin
+            val swatchSize = 42f
+            val swatchSpacing = 20f
+            val maxPerRow = (contentWidth / (swatchSize + swatchSpacing)).toInt()
             
-            allColors.forEach { colorInt ->
-                if (swatchX + swatchSize > pageWidth - margin) {
-                    swatchX = margin
-                    currentY += swatchSize + 30f
+            allColors.chunked(maxPerRow).forEach { rowColors ->
+                ensureSpace(swatchSize + 40f)
+                
+                val rowWidth = (rowColors.size * swatchSize) + ((rowColors.size - 1) * swatchSpacing)
+                var swatchX = margin + (contentWidth - rowWidth) / 2f
+                
+                rowColors.forEach { colorInt ->
+                    paint.color = colorInt
+                    paint.style = Paint.Style.FILL
+                    canvas!!.drawCircle(swatchX + swatchSize / 2, currentY + swatchSize / 2, swatchSize / 2, paint)
+                    
+                    // Light border for clarity on white background
+                    paint.color = Color.LTGRAY
+                    paint.style = Paint.Style.STROKE
+                    paint.strokeWidth = 0.5f
+                    canvas!!.drawCircle(swatchX + swatchSize / 2, currentY + swatchSize / 2, swatchSize / 2, paint)
+                    
+                    val hexText = String.format("#%06X", 0xFFFFFF and colorInt)
+                    val hexPaint = TextPaint().apply { 
+                        textSize = 8f
+                        textAlign = Paint.Align.CENTER
+                        color = Color.DKGRAY
+                        typeface = Typeface.MONOSPACE
+                        isAntiAlias = true
+                    }
+                    canvas!!.drawText(hexText, swatchX + swatchSize / 2, currentY + swatchSize + 14f, hexPaint)
+                    
+                    swatchX += swatchSize + swatchSpacing
                 }
-                
-                ensureSpace(swatchSize + 20f)
-                if (currentY == margin) swatchX = margin
-
-                paint.color = colorInt
-                canvas!!.drawCircle(swatchX + swatchSize / 2, currentY + swatchSize / 2, swatchSize / 2, paint)
-                
-                val hexText = String.format("#%06X", 0xFFFFFF and colorInt)
-                val hexPaint = TextPaint().apply { 
-                    textSize = 8f
-                    textAlign = Paint.Align.CENTER
-                    color = Color.BLACK
-                    isAntiAlias = true
-                }
-                canvas!!.drawText(hexText, swatchX + swatchSize / 2, currentY + swatchSize + 12f, hexPaint)
-                
-                swatchX += swatchSize + spacing
+                currentY += swatchSize + 40f
             }
-            currentY += swatchSize + 40f
+            currentY += 20f
         }
 
-        // 6. Observations
-        entry.observation?.let { obs ->
-            ensureSpace(40f)
+        // 5. Observations Section
+        entry.observation?.takeIf { it.isNotBlank() }?.let { obs ->
+            ensureSpace(80f)
             currentY = drawSectionHeader("Observations", canvas!!, currentY)
             
             val obsPaint = TextPaint().apply {
                 isAntiAlias = true
                 textSize = 14f
-                color = Color.DKGRAY
+                color = Color.rgb(40, 40, 40)
             }
             
             val obsLayout = createStaticLayout(obs, obsPaint, contentWidth.toInt())
-            
-            // For observations, we'll just move to new page if it doesn't fit at all, 
-            // or draw it and let it clip if it's extremely long (simple implementation).
-            // A better one would split the text line by line.
-            ensureSpace(obsLayout.height.toFloat().coerceAtMost(200f)) 
+            ensureSpace(obsLayout.height.toFloat() + 20f)
             obsLayout.drawOnCanvas(canvas!!, margin, currentY)
-            currentY += obsLayout.height + 20f
+            currentY += obsLayout.height + 40f
         }
 
         currentPage?.let { pdfDocument.finishPage(it) }
@@ -218,9 +223,17 @@ class EntryPdfExporter(private val context: Context) {
             isAntiAlias = true
             textSize = 18f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            color = Color.BLACK
         }
-        canvas.drawText(text, margin, y + 18f, paint)
-        return y + 30f
+        canvas.drawText(text, margin, y + 22f, paint)
+        
+        val linePaint = Paint().apply {
+            color = Color.rgb(220, 220, 220)
+            strokeWidth = 1.5f
+        }
+        canvas.drawLine(margin, y + 32f, margin + 60f, y + 32f, linePaint)
+        
+        return y + 50f
     }
 
     private fun loadBitmapFromUri(uri: Uri): Bitmap? {
@@ -241,7 +254,7 @@ class EntryPdfExporter(private val context: Context) {
     private fun createStaticLayout(text: String, paint: TextPaint, width: Int): StaticLayout {
         return StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setLineSpacing(0f, 1.2f)
+            .setLineSpacing(0f, 1.3f)
             .setIncludePad(false)
             .build()
     }
