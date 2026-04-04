@@ -55,148 +55,158 @@ class EntryPdfExporter(private val context: Context) {
         pageNumber = 0
         currentPage = null
         currentY = margin
-        
+
+        // --- PAGE 1: ENTRY HEADER + OBSERVATIONS ---
         startNewPage()
 
-        // 1. Header
+        // MANDATORY: Fixed top-down positioning. NO vertical centering.
+        currentY = 100f 
+
         val titlePaint = TextPaint().apply {
             isAntiAlias = true
-            textSize = 26f
+            textSize = 32f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             color = Color.BLACK
+            textAlign = Paint.Align.CENTER
         }
-        val titleLayout = createStaticLayout(entry.title, titlePaint, contentWidth.toInt())
-        ensureSpace(titleLayout.height.toFloat())
-        titleLayout.drawOnCanvas(canvas!!, margin, currentY)
-        currentY += titleLayout.height + 8f
-
-        val dateText = SimpleDateFormat("EEEE, MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(entry.timestamp))
         val datePaint = TextPaint().apply {
             isAntiAlias = true
-            textSize = 12f
+            textSize = 14f
             color = Color.GRAY
+            textAlign = Paint.Align.CENTER
         }
-        ensureSpace(20f)
-        canvas!!.drawText(dateText, margin, currentY + 12f, datePaint)
-        currentY += 40f
+        val obsPaint = TextPaint().apply {
+            isAntiAlias = true
+            textSize = 14f
+            color = Color.rgb(40, 40, 40)
+        }
 
-        // 2. Main Content Images
+        val titleLayout = createStaticLayout(entry.title, titlePaint, contentWidth.toInt(), Layout.Alignment.ALIGN_CENTER)
+        val dateText = SimpleDateFormat("EEEE, MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(entry.timestamp))
+        val observation = entry.observation?.takeIf { it.isNotBlank() } ?: ""
+
+        // 1. Draw Title (horizontally centered)
+        titleLayout.drawOnCanvas(canvas!!, margin, currentY)
+        currentY += titleLayout.height + 12f
+
+        // 2. Draw Date (horizontally centered)
+        canvas!!.drawText(dateText, pageWidth / 2f, currentY + 14f, datePaint)
+        currentY += 80f // Large spacing before Observations section
+
+        // 3. Draw Observations (left-aligned)
+        if (observation.isNotEmpty()) {
+            currentY = drawSectionHeader("Observations", canvas!!, currentY)
+            
+            val obsLayout = createStaticLayout(observation, obsPaint, contentWidth.toInt())
+            
+            // Handle multi-page overflow for observations
+            val lines = observation.split("\n")
+            lines.forEach { line ->
+                if (line.isBlank()) {
+                    currentY += 10f
+                    return@forEach
+                }
+                val lineLayout = createStaticLayout(line, obsPaint, contentWidth.toInt())
+                ensureSpace(lineLayout.height.toFloat())
+                lineLayout.drawOnCanvas(canvas!!, margin, currentY)
+                currentY += lineLayout.height.toFloat()
+            }
+        }
+
+        // --- PER-IMAGE FLOW ---
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         entry.media.forEach { mediaItem ->
+            // 1. PAGE - IMAGE
             mediaItem.imageUri?.let { uriString ->
                 val bitmap = loadBitmapFromUri(Uri.parse(uriString))
                 if (bitmap != null) {
-                    val scaledBitmap = scaleBitmapToWidth(bitmap, contentWidth)
-                    ensureSpace(scaledBitmap.height.toFloat() + 20f)
-                    canvas!!.drawBitmap(scaledBitmap, margin, currentY, paint)
-                    currentY += scaledBitmap.height + 30f
+                    startNewPage()
+                    val scaledBitmap = scaleBitmapToFitPage(bitmap, contentWidth, pageHeight - 2 * margin)
+                    val x = (pageWidth - scaledBitmap.width) / 2f
+                    val y = (pageHeight - scaledBitmap.height) / 2f
+                    canvas!!.drawBitmap(scaledBitmap, x, y, paint)
                     scaledBitmap.recycle()
                     bitmap.recycle()
                 }
             }
-        }
 
-        // 3. Captured Textures Section
-        val validTextures = entry.media.flatMap { it.textures }.mapNotNull { texture ->
-            val bitmap = texture.imageUri?.let { loadBitmapFromUri(Uri.parse(it)) }
-            if (bitmap != null) texture to bitmap else null
-        }
-
-        if (validTextures.isNotEmpty()) {
-            ensureSpace(80f)
-            currentY = drawSectionHeader("Captured Textures", canvas!!, currentY)
-            
-            val textureSpacing = 15f
-            val textureSize = (contentWidth - 2 * textureSpacing) / 3f
-            
-            validTextures.chunked(3).forEach { rowTextures ->
-                ensureSpace(textureSize + 40f)
+            // 2. PAGE - TEXTURES (FOR THAT IMAGE ONLY)
+            if (mediaItem.textures.isNotEmpty()) {
+                startNewPage()
+                currentY = drawSectionHeader("Captured Textures", canvas!!, currentY)
                 
-                // Centering Logic for rows with fewer than 3 items
-                val rowWidth = (rowTextures.size * textureSize) + ((rowTextures.size - 1) * textureSpacing)
-                var textureX = margin + (contentWidth - rowWidth) / 2f
-
-                rowTextures.forEach { (texture, bitmap) ->
-                    val rect = RectF(textureX, currentY, textureX + textureSize, currentY + textureSize)
-                    canvas!!.drawBitmap(bitmap, null, rect, paint)
+                val textureSpacing = 20f
+                val textureSize = (contentWidth - 2 * textureSpacing) / 3f
+                
+                mediaItem.textures.chunked(3).forEach { rowTextures ->
+                    ensureSpace(textureSize + 50f)
+                    var textureX = margin
                     
-                    val labelPaint = TextPaint().apply { 
-                        textSize = 9f
-                        textAlign = Paint.Align.CENTER 
-                        isAntiAlias = true
-                        color = Color.BLACK
+                    rowTextures.forEach { texture ->
+                        texture.imageUri?.let { tUri ->
+                            loadBitmapFromUri(Uri.parse(tUri))?.let { tBitmap ->
+                                val rect = RectF(textureX, currentY, textureX + textureSize, currentY + textureSize)
+                                canvas!!.drawBitmap(tBitmap, null, rect, paint)
+                                
+                                val labelPaint = TextPaint().apply { 
+                                    textSize = 10f
+                                    textAlign = Paint.Align.CENTER 
+                                    isAntiAlias = true
+                                    color = Color.BLACK
+                                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+                                }
+                                val displayLabel = if (texture.name.length > 20) texture.name.take(17) + "..." else texture.name
+                                canvas!!.drawText(displayLabel, textureX + textureSize / 2, currentY + textureSize + 16f, labelPaint)
+                                
+                                tBitmap.recycle()
+                            }
+                        }
+                        textureX += textureSize + textureSpacing
                     }
-                    val labelY = currentY + textureSize + 14f
-                    val displayLabel = if (texture.name.length > 18) texture.name.take(15) + "..." else texture.name
-                    canvas!!.drawText(displayLabel, textureX + textureSize / 2, labelY, labelPaint)
-                    
-                    bitmap.recycle()
-                    textureX += textureSize + textureSpacing
+                    currentY += textureSize + 50f
                 }
-                currentY += textureSize + 45f
             }
-            currentY += 20f
-        }
 
-        // 4. Color Palette Section
-        val allColors = entry.media.flatMap { it.colors }.distinct()
-        if (allColors.isNotEmpty()) {
-            ensureSpace(80f)
-            currentY = drawSectionHeader("Color Palette", canvas!!, currentY)
-            
-            val swatchSize = 42f
-            val swatchSpacing = 20f
-            val maxPerRow = (contentWidth / (swatchSize + swatchSpacing)).toInt()
-            
-            allColors.chunked(maxPerRow).forEach { rowColors ->
-                ensureSpace(swatchSize + 40f)
+            // 3. PAGE - COLOR PALETTE (FOR THAT IMAGE ONLY)
+            if (mediaItem.colors.isNotEmpty()) {
+                startNewPage()
+                currentY = drawSectionHeader("Color Palette", canvas!!, currentY)
                 
-                val rowWidth = (rowColors.size * swatchSize) + ((rowColors.size - 1) * swatchSpacing)
-                var swatchX = margin + (contentWidth - rowWidth) / 2f
+                val swatchSize = 50f
+                val swatchSpacing = 25f
+                val itemsPerRow = 5
                 
-                rowColors.forEach { colorInt ->
-                    paint.color = colorInt
-                    paint.style = Paint.Style.FILL
-                    canvas!!.drawCircle(swatchX + swatchSize / 2, currentY + swatchSize / 2, swatchSize / 2, paint)
+                mediaItem.colors.chunked(itemsPerRow).forEach { rowColors ->
+                    ensureSpace(swatchSize + 50f)
+                    var swatchX = margin
                     
-                    // Light border for clarity on white background
-                    paint.color = Color.LTGRAY
-                    paint.style = Paint.Style.STROKE
-                    paint.strokeWidth = 0.5f
-                    canvas!!.drawCircle(swatchX + swatchSize / 2, currentY + swatchSize / 2, swatchSize / 2, paint)
-                    
-                    val hexText = String.format("#%06X", 0xFFFFFF and colorInt)
-                    val hexPaint = TextPaint().apply { 
-                        textSize = 8f
-                        textAlign = Paint.Align.CENTER
-                        color = Color.DKGRAY
-                        typeface = Typeface.MONOSPACE
-                        isAntiAlias = true
+                    rowColors.forEach { colorInt ->
+                        // Circular swatch
+                        paint.color = colorInt
+                        paint.style = Paint.Style.FILL
+                        canvas!!.drawCircle(swatchX + swatchSize / 2, currentY + swatchSize / 2, swatchSize / 2, paint)
+                        
+                        // Border
+                        paint.color = Color.LTGRAY
+                        paint.style = Paint.Style.STROKE
+                        paint.strokeWidth = 1f
+                        canvas!!.drawCircle(swatchX + swatchSize / 2, currentY + swatchSize / 2, swatchSize / 2, paint)
+                        
+                        val hexText = String.format("#%06X", 0xFFFFFF and colorInt)
+                        val hexPaint = TextPaint().apply { 
+                            textSize = 10f
+                            textAlign = Paint.Align.CENTER
+                            color = Color.DKGRAY
+                            typeface = Typeface.MONOSPACE
+                            isAntiAlias = true
+                        }
+                        canvas!!.drawText(hexText, swatchX + swatchSize / 2, currentY + swatchSize + 18f, hexPaint)
+                        
+                        swatchX += swatchSize + swatchSpacing
                     }
-                    canvas!!.drawText(hexText, swatchX + swatchSize / 2, currentY + swatchSize + 14f, hexPaint)
-                    
-                    swatchX += swatchSize + swatchSpacing
+                    currentY += swatchSize + 50f
                 }
-                currentY += swatchSize + 40f
             }
-            currentY += 20f
-        }
-
-        // 5. Observations Section
-        entry.observation?.takeIf { it.isNotBlank() }?.let { obs ->
-            ensureSpace(80f)
-            currentY = drawSectionHeader("Observations", canvas!!, currentY)
-            
-            val obsPaint = TextPaint().apply {
-                isAntiAlias = true
-                textSize = 14f
-                color = Color.rgb(40, 40, 40)
-            }
-            
-            val obsLayout = createStaticLayout(obs, obsPaint, contentWidth.toInt())
-            ensureSpace(obsLayout.height.toFloat() + 20f)
-            obsLayout.drawOnCanvas(canvas!!, margin, currentY)
-            currentY += obsLayout.height + 40f
         }
 
         currentPage?.let { pdfDocument.finishPage(it) }
@@ -221,19 +231,20 @@ class EntryPdfExporter(private val context: Context) {
     private fun drawSectionHeader(text: String, canvas: Canvas, y: Float): Float {
         val paint = TextPaint().apply {
             isAntiAlias = true
-            textSize = 18f
+            textSize = 20f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             color = Color.BLACK
         }
-        canvas.drawText(text, margin, y + 22f, paint)
+        ensureSpace(40f)
+        canvas.drawText(text, margin, y + 24f, paint)
         
         val linePaint = Paint().apply {
-            color = Color.rgb(220, 220, 220)
-            strokeWidth = 1.5f
+            color = Color.BLACK
+            strokeWidth = 2f
         }
-        canvas.drawLine(margin, y + 32f, margin + 60f, y + 32f, linePaint)
+        canvas.drawLine(margin, y + 36f, margin + 40f, y + 36f, linePaint)
         
-        return y + 50f
+        return y + 60f
     }
 
     private fun loadBitmapFromUri(uri: Uri): Bitmap? {
@@ -245,16 +256,21 @@ class EntryPdfExporter(private val context: Context) {
         }
     }
 
-    private fun scaleBitmapToWidth(bitmap: Bitmap, targetWidth: Float): Bitmap {
-        val aspectRatio = bitmap.height.toFloat() / bitmap.width.toFloat()
-        val targetHeight = targetWidth * aspectRatio
-        return Bitmap.createScaledBitmap(bitmap, targetWidth.toInt(), targetHeight.toInt(), true)
+    private fun scaleBitmapToFitPage(bitmap: Bitmap, maxWidth: Float, maxHeight: Float): Bitmap {
+        val width = bitmap.width.toFloat()
+        val height = bitmap.height.toFloat()
+        val ratio = Math.min(maxWidth / width, maxHeight / height)
+        
+        val finalWidth = (width * ratio).toInt()
+        val finalHeight = (height * ratio).toInt()
+        
+        return Bitmap.createScaledBitmap(bitmap, finalWidth, finalHeight, true)
     }
 
-    private fun createStaticLayout(text: String, paint: TextPaint, width: Int): StaticLayout {
+    private fun createStaticLayout(text: String, paint: TextPaint, width: Int, alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL): StaticLayout {
         return StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
-            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setLineSpacing(0f, 1.3f)
+            .setAlignment(alignment)
+            .setLineSpacing(0f, 1.4f)
             .setIncludePad(false)
             .build()
     }
