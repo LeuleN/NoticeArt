@@ -27,16 +27,15 @@ import com.example.userflowdemo.Texture
 fun TextureCaptureScreen(
     imageUri: String,
     initialTextures: List<Texture>,
+    onUpdateTextures: (List<Texture>) -> Unit,
     onConfirm: (List<Texture>) -> Unit,
     onAddTexture: () -> Unit,
     onEditTexture: (Texture) -> Unit,
     onBack: () -> Unit
 ) {
-    var textures by remember { mutableStateOf(initialTextures) }
-    
     // Ordering logic: Custom-named textures FIRST, then default textures
-    val sortedTextures = remember(textures) {
-        val (custom, default) = textures.partition { it.isCustomName }
+    val sortedTextures = remember(initialTextures) {
+        val (custom, default) = initialTextures.partition { it.isCustomName }
         custom.sortedBy { it.name } + default.sortedBy { it.name }
     }
 
@@ -100,7 +99,7 @@ fun TextureCaptureScreen(
                     TextureItem(
                         texture = texture,
                         onDelete = {
-                            textures = textures.filter { it.id != texture.id }
+                            onUpdateTextures(initialTextures.filter { it.id != texture.id })
                         },
                         onClick = { onEditTexture(texture) }
                     )
@@ -110,7 +109,7 @@ fun TextureCaptureScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             IconButton(
-                onClick = { onConfirm(textures) },
+                onClick = { onConfirm(initialTextures) },
                 modifier = Modifier
                     .size(64.dp)
                     .background(MaterialTheme.colorScheme.primary, CircleShape)

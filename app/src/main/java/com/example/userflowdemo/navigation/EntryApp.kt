@@ -257,6 +257,9 @@ fun EntryApp(
                 TextureCaptureScreen(
                     imageUri = uri,
                     initialTextures = mediaItem?.textures ?: emptyList(),
+                    onUpdateTextures = { textures ->
+                        viewModel.updateTextures(editingMediaIndex!!, textures)
+                    },
                     onConfirm = { textures ->
                         viewModel.updateTextures(editingMediaIndex!!, textures)
                         textureCaptureUri = null
