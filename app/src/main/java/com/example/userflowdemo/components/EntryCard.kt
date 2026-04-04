@@ -1,17 +1,25 @@
 package com.example.userflowdemo.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,12 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.Entry
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material3.Icon
 
 @Composable
 fun AddCard(onAddClick: () -> Unit) {
@@ -62,14 +64,17 @@ fun DraftCard(draft: Entry, onDraftClick: () -> Unit) {
     EntryCard(
         entry = draft,
         onClick = onDraftClick,
+        onLongClick = {}, // Drafts probably don't need PDF export yet
         isDraft = true
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun EntryCard(
     entry: Entry,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     isDraft: Boolean = false
 ) {
@@ -79,9 +84,13 @@ fun EntryCard(
             .alpha(if (isDraft) 0.8f else 1f),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        onClick = onClick
     ) {
-        Box {
+        Box(
+            modifier = Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+        ) {
             Column {
                 // Top area: Image preview or Placeholder
                 val firstMedia = entry.media.firstOrNull()

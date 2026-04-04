@@ -53,7 +53,8 @@ fun EntryDetailScreen(
     entry: Entry,
     onBack: () -> Unit,
     onDelete: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onExportPdf: (Entry) -> Unit
 ) {
     val formattedTime = java.text.SimpleDateFormat(
         "MMM dd, yyyy hh:mm a",
@@ -113,7 +114,6 @@ fun EntryDetailScreen(
                         .fillMaxWidth()
                         .height(300.dp)
                 ) {
-                    // Full Image Preview: ONLY raw image, no overlays
                     Image(
                         painter = rememberAsyncImagePainter(mediaItem.imageUri),
                         contentDescription = null,
@@ -264,7 +264,6 @@ fun EntryDetailScreen(
                                             .fillMaxHeight(0.25f)
                                             .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                     ) {
-                                        // Clear Visual Separation (Horizontal Divider Line)
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -311,7 +310,6 @@ fun EntryDetailScreen(
                                             .fillMaxHeight(0.25f)
                                             .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                     ) {
-                                        // Clear Visual Separation (Horizontal Divider Line)
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -479,6 +477,13 @@ fun EntryDetailScreen(
                 )
 
                 Row {
+                    Text(
+                        text = "Export PDF",
+                        modifier = Modifier.clickable { onExportPdf(entry) },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(24.dp))
                     Text(
                         text = "Edit",
                         modifier = Modifier.clickable { onEdit() },

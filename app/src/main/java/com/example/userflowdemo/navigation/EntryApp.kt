@@ -1,37 +1,21 @@
 package com.example.userflowdemo.navigation
 
-import com.example.userflowdemo.ui.RecordAudioScreen
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.userflowdemo.Entry
-import com.example.userflowdemo.EntryViewModel
-import com.example.userflowdemo.ui.ColorCaptureScreen
-import com.example.userflowdemo.ui.EntryDetailScreen
-import com.example.userflowdemo.ui.HomeScreen
-import com.example.userflowdemo.ui.ImageMediaScreen
-import com.example.userflowdemo.ui.NewEntryScreen
-import com.example.userflowdemo.ui.WelcomeScreen
-import com.example.userflowdemo.utils.PreferenceManager
-import com.example.userflowdemo.utils.isDraftEmpty
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import com.example.userflowdemo.Texture
-import com.example.userflowdemo.ui.TextureCaptureScreen
-import com.example.userflowdemo.ui.CropTextureScreen
-import java.util.UUID
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.userflowdemo.*
+import com.example.userflowdemo.ui.*
+import com.example.userflowdemo.utils.PreferenceManager
+import com.example.userflowdemo.utils.isDraftEmpty
+import java.util.*
 
 @Composable
 fun EntryApp(
@@ -39,6 +23,7 @@ fun EntryApp(
 ) {
     val context = LocalContext.current
     val preferenceManager = remember { PreferenceManager(context) }
+    val pdfExporter = remember { EntryPdfExporter(context) }
     
     var currentScreen by rememberSaveable { 
         mutableStateOf(if (preferenceManager.hasOnboarded()) "home" else "welcome") 
@@ -52,7 +37,6 @@ fun EntryApp(
     var colorCaptureUri by rememberSaveable { mutableStateOf<String?>(null) }
     var textureCaptureUri by rememberSaveable { mutableStateOf<String?>(null) }
     
-    // For CropTextureScreen
     var textureToEdit by remember { mutableStateOf<Texture?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -62,7 +46,6 @@ fun EntryApp(
     val entries by viewModel.entries.collectAsState()
     val draft by viewModel.draft.collectAsState()
 
-    // Handle Undo for deleted entries
     LaunchedEffect(recentlyDeletedEntry) {
         recentlyDeletedEntry?.let { entry ->
             val result = snackbarHostState.showSnackbar(
@@ -77,7 +60,6 @@ fun EntryApp(
         }
     }
 
-    // Handle Undo for discarded drafts
     LaunchedEffect(recentlyDiscardedDraft) {
         recentlyDiscardedDraft?.let { entry ->
             val result = snackbarHostState.showSnackbar(
@@ -136,6 +118,21 @@ fun EntryApp(
                 onEntryClick = { entry ->
                     selectedEntry = entry
                     currentScreen = "detail"
+                },
+                onExportPdf = { entry ->
+                    pdfExporter.exportAndShare(entry)
+                },
+                onShareEntry = { entry ->
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, entry.title)
+                        putExtra(Intent.EXTRA_TEXT, "${entry.title}\n\n${entry.observation ?: ""}")
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Entry"))
+                },
+                onDeleteEntry = { entry ->
+                    recentlyDeletedEntry = entry
+                    viewModel.deleteEntry(entry)
                 }
             )
         }
@@ -145,12 +142,8 @@ fun EntryApp(
                 originalEntry = selectedEntry,
                 isEditing = isEditing,
                 snackbarHostState = snackbarHostState,
-                onTitleChange = { newTitle ->
-                    viewModel.updateDraft(newTitle)
-                },
-                onObservationChange = { newObservation ->
-                    viewModel.updateObservation(newObservation)
-                },
+                onTitleChange = { viewModel.updateDraft(it) },
+                onObservationChange = { viewModel.updateObservation(it) },
                 onPublish = {
                     viewModel.publishDraft()
                     currentScreen = "home"
@@ -171,28 +164,18 @@ fun EntryApp(
                     viewModel.discardDraft()
                     currentScreen = "detail"
                 },
-                onAutoSave = {
-                    viewModel.autoSave()
-                },
-                onNavigateToImageMedia = { index: Int? ->
+                onAutoSave = { viewModel.autoSave() },
+                onNavigateToImageMedia = { index ->
                     editingMediaIndex = index
                     currentMediaId = if (index != null && index >= 0) {
                         draft?.media?.getOrNull(index)?.id
                     } else null
                     currentScreen = "imageMedia"
                 },
-                onRemoveMedia = { index: Int ->
-                    viewModel.removeMediaItem(index)
-                },
-                onAddAudioFromFiles = {
-                    audioPicker.launch(arrayOf("audio/*"))
-                },
-                onRecordAudioNow = {
-                    currentScreen = "recordAudio"
-                },
-                onRemoveAudio = { uri ->
-                    viewModel.removeAudioUri(uri)
-                }
+                onRemoveMedia = { viewModel.removeMediaItem(it) },
+                onAddAudioFromFiles = { audioPicker.launch(arrayOf("audio/*")) },
+                onRecordAudioNow = { currentScreen = "recordAudio" },
+                onRemoveAudio = { viewModel.removeAudioUri(it) }
             )
         }
         "recordAudio" -> {
@@ -201,9 +184,7 @@ fun EntryApp(
                     viewModel.addAudioUri(uri)
                     currentScreen = "newEntry"
                 },
-                onBack = {
-                    currentScreen = "newEntry"
-                }
+                onBack = { currentScreen = "newEntry" }
             )
         }
         "imageMedia" -> {
@@ -277,7 +258,6 @@ fun EntryApp(
             } else {
                 currentMediaId
             }
-            
             if (mediaId != null && textureCaptureUri != null) {
                 TextureCaptureScreen(
                     viewModel = viewModel,
@@ -308,7 +288,6 @@ fun EntryApp(
             } else {
                 currentMediaId
             }
-            
             if (mediaId != null && textureCaptureUri != null) {
                 CropTextureScreen(
                     viewModel = viewModel,
@@ -339,7 +318,8 @@ fun EntryApp(
                         isEditing = true
                         viewModel.startEditing(latestEntry)
                         currentScreen = "newEntry"
-                    }
+                    },
+                    onExportPdf = { pdfExporter.exportAndShare(it) }
                 )
             }
         }
