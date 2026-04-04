@@ -39,7 +39,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
-import coil.compose.AsyncImage
 import com.example.userflowdemo.CropRect
 import com.example.userflowdemo.Texture
 import java.io.File
@@ -75,6 +74,7 @@ fun CropTextureScreen(
         } catch (e: Exception) { null }
     }
 
+    // State in pixels. Initial value from DB might be normalized (0..1) or pixels.
     var cropRect by remember {
         mutableStateOf(existingTexture?.cropRect ?: CropRect(0.2f, 0.2f, 0.8f, 0.8f))
     }
@@ -82,6 +82,18 @@ fun CropTextureScreen(
     var displaySize by remember { mutableStateOf(Size.Zero) }
     var imageSize by remember { mutableStateOf(Size.Zero) }
     var imageOffset by remember { mutableStateOf(Offset.Zero) }
+
+    // Convert normalized to pixels once imageSize is known
+    LaunchedEffect(imageSize) {
+        if (imageSize.width > 0 && cropRect.left <= 1f && cropRect.right <= 1f) {
+            cropRect = CropRect(
+                left = cropRect.left * imageSize.width,
+                top = cropRect.top * imageSize.height,
+                right = cropRect.right * imageSize.width,
+                bottom = cropRect.bottom * imageSize.height
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -191,33 +203,44 @@ fun CropTextureScreen(
 
             IconButton(
                 onClick = {
-                    bitmap?.let { b ->
-                        try {
-                            val bitmapLeft = (cropRect.left * b.width).roundToInt().coerceIn(0, b.width - 1)
-                            val bitmapTop = (cropRect.top * b.height).roundToInt().coerceIn(0, b.height - 1)
-                            val bitmapRight = (cropRect.right * b.width).roundToInt().coerceIn(bitmapLeft + 1, b.width)
-                            val bitmapBottom = (cropRect.bottom * b.height).roundToInt().coerceIn(bitmapTop + 1, b.height)
-                            
-                            val width = (bitmapRight - bitmapLeft).coerceAtLeast(1)
-                            val height = (bitmapBottom - bitmapTop).coerceAtLeast(1)
-                            
-                            val cropped = Bitmap.createBitmap(b, bitmapLeft, bitmapTop, width, height)
-                            
-                            val file = File(context.cacheDir, "texture_${UUID.randomUUID()}.png")
-                            FileOutputStream(file).use { out ->
-                                cropped.compress(Bitmap.CompressFormat.PNG, 100, out)
-                            }
-                            
-                            onConfirm(Texture(
-                                id = existingTexture?.id ?: UUID.randomUUID().toString(),
-                                imageUri = Uri.fromFile(file).toString(),
-                                name = typedName.ifBlank { placeholderName },
-                                isCustomName = typedName.isNotBlank(),
-                                cropRect = cropRect
-                            ))
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Crop failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    val b = bitmap ?: return@IconButton
+                    if (imageSize.width <= 0) return@IconButton
+
+                    try {
+                        val left = cropRect.left.coerceIn(0f, imageSize.width)
+                        val top = cropRect.top.coerceIn(0f, imageSize.height)
+                        val right = cropRect.right.coerceIn(0f, imageSize.width)
+                        val bottom = cropRect.bottom.coerceIn(0f, imageSize.height)
+
+                        val width = right - left
+                        val height = bottom - top
+
+                        if (width <= 0 || height <= 0) return@IconButton
+
+                        val scaleX = b.width.toFloat() / imageSize.width
+                        val scaleY = b.height.toFloat() / imageSize.height
+
+                        val bitmapLeft = (left * scaleX).toInt().coerceIn(0, b.width - 1)
+                        val bitmapTop = (top * scaleY).toInt().coerceIn(0, b.height - 1)
+                        val bitmapWidth = (width * scaleX).toInt().coerceIn(1, b.width - bitmapLeft)
+                        val bitmapHeight = (height * scaleY).toInt().coerceIn(1, b.height - bitmapTop)
+
+                        val cropped = Bitmap.createBitmap(b, bitmapLeft, bitmapTop, bitmapWidth, bitmapHeight)
+                        
+                        val file = File(context.cacheDir, "texture_${UUID.randomUUID()}.png")
+                        FileOutputStream(file).use { out ->
+                            cropped.compress(Bitmap.CompressFormat.PNG, 100, out)
                         }
+                        
+                        onConfirm(Texture(
+                            id = existingTexture?.id ?: UUID.randomUUID().toString(),
+                            imageUri = Uri.fromFile(file).toString(),
+                            name = typedName.ifBlank { placeholderName },
+                            isCustomName = typedName.isNotBlank(),
+                            cropRect = cropRect
+                        ))
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Crop failed: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier
@@ -244,75 +267,83 @@ private fun CropOverlay(
 ) {
     val density = LocalDensity.current
     val cornerRadius = with(density) { 30.dp.toPx() }
-    val minSize = 0.1f
+    val minSize = 40f
 
     var currentMode by remember { mutableStateOf(CropMode.NONE) }
 
-    val leftPx = imageOffset.x + cropRect.left * imageSize.width
-    val topPx = imageOffset.y + cropRect.top * imageSize.height
-    val rightPx = imageOffset.x + cropRect.right * imageSize.width
-    val bottomPx = imageOffset.y + cropRect.bottom * imageSize.height
+    val updatedCropRect = rememberUpdatedState(cropRect)
+    val updatedOnCropChanged = rememberUpdatedState(onCropChanged)
+
+    val leftPx = imageOffset.x + cropRect.left
+    val topPx = imageOffset.y + cropRect.top
+    val rightPx = imageOffset.x + cropRect.right
+    val bottomPx = imageOffset.y + cropRect.bottom
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(imageSize, imageOffset, cropRect) {
+            .pointerInput(imageSize, imageOffset) {
                 detectDragGestures(
                     onDragStart = { touch ->
-                        val distTL = (touch - Offset(leftPx, topPx)).getDistance()
-                        val distTR = (touch - Offset(rightPx, topPx)).getDistance()
-                        val distBL = (touch - Offset(leftPx, bottomPx)).getDistance()
-                        val distBR = (touch - Offset(rightPx, bottomPx)).getDistance()
+                        val currentRect = updatedCropRect.value
+                        val l = imageOffset.x + currentRect.left
+                        val t = imageOffset.y + currentRect.top
+                        val r = imageOffset.x + currentRect.right
+                        val b = imageOffset.y + currentRect.bottom
+
+                        val distTL = (touch - Offset(l, t)).getDistance()
+                        val distTR = (touch - Offset(r, t)).getDistance()
+                        val distBL = (touch - Offset(l, b)).getDistance()
+                        val distBR = (touch - Offset(r, b)).getDistance()
 
                         currentMode = when {
                             distTL < cornerRadius -> CropMode.TOP_LEFT
                             distTR < cornerRadius -> CropMode.TOP_RIGHT
                             distBL < cornerRadius -> CropMode.BOTTOM_LEFT
                             distBR < cornerRadius -> CropMode.BOTTOM_RIGHT
-                            touch.x in leftPx..rightPx && touch.y in topPx..bottomPx -> CropMode.MOVE
+                            touch.x in l..r && touch.y in t..b -> CropMode.MOVE
                             else -> CropMode.NONE
                         }
                     },
                     onDrag = { change, dragAmount ->
                         if (currentMode == CropMode.NONE) return@detectDragGestures
+                        change.consume()
 
-                        var newLeft = cropRect.left
-                        var newTop = cropRect.top
-                        var newRight = cropRect.right
-                        var newBottom = cropRect.bottom
-
-                        val dx = dragAmount.x / imageSize.width
-                        val dy = dragAmount.y / imageSize.height
+                        val currentRect = updatedCropRect.value
+                        var newLeft = currentRect.left
+                        var newTop = currentRect.top
+                        var newRight = currentRect.right
+                        var newBottom = currentRect.bottom
 
                         when (currentMode) {
                             CropMode.MOVE -> {
-                                val width = cropRect.right - cropRect.left
-                                val height = cropRect.bottom - cropRect.top
-                                newLeft = (cropRect.left + dx).coerceIn(0f, 1f - width)
-                                newTop = (cropRect.top + dy).coerceIn(0f, 1f - height)
+                                val width = currentRect.right - currentRect.left
+                                val height = currentRect.bottom - currentRect.top
+                                newLeft = (currentRect.left + dragAmount.x).coerceIn(0f, imageSize.width - width)
+                                newTop = (currentRect.top + dragAmount.y).coerceIn(0f, imageSize.height - height)
                                 newRight = newLeft + width
                                 newBottom = newTop + height
                             }
                             CropMode.TOP_LEFT -> {
-                                newLeft = (cropRect.left + dx).coerceIn(0f, cropRect.right - minSize)
-                                newTop = (cropRect.top + dy).coerceIn(0f, cropRect.bottom - minSize)
+                                newLeft = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize)
+                                newTop = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
                             }
                             CropMode.TOP_RIGHT -> {
-                                newRight = (cropRect.right + dx).coerceIn(cropRect.left + minSize, 1f)
-                                newTop = (cropRect.top + dy).coerceIn(0f, cropRect.bottom - minSize)
+                                newRight = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, imageSize.width)
+                                newTop = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
                             }
                             CropMode.BOTTOM_LEFT -> {
-                                newLeft = (cropRect.left + dx).coerceIn(0f, cropRect.right - minSize)
-                                newBottom = (cropRect.bottom + dy).coerceIn(cropRect.top + minSize, 1f)
+                                newLeft = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize)
+                                newBottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, imageSize.height)
                             }
                             CropMode.BOTTOM_RIGHT -> {
-                                newRight = (cropRect.right + dx).coerceIn(cropRect.left + minSize, 1f)
-                                newBottom = (cropRect.bottom + dy).coerceIn(cropRect.top + minSize, 1f)
+                                newRight = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, imageSize.width)
+                                newBottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, imageSize.height)
                             }
                             else -> {}
                         }
 
-                        onCropChanged(CropRect(newLeft, newTop, newRight, newBottom))
+                        updatedOnCropChanged.value(CropRect(newLeft, newTop, newRight, newBottom))
                     },
                     onDragEnd = { currentMode = CropMode.NONE },
                     onDragCancel = { currentMode = CropMode.NONE }
