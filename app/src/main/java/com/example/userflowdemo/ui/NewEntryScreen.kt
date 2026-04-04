@@ -509,19 +509,43 @@ fun NewEntryScreen(
                                                             }
                                                         }
                                                     } else if (mediaItem.colors.isNotEmpty()) {
-                                                        Row(
+                                                        Column(
                                                             modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .height(30.dp)
                                                                 .align(Alignment.BottomCenter)
+                                                                .fillMaxWidth()
+                                                                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                                         ) {
-                                                            mediaItem.colors.take(3).forEach { colorInt ->
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .weight(1f)
-                                                                        .fillMaxHeight()
-                                                                        .background(Color(colorInt))
-                                                                )
+                                                            // Clear Visual Separation (Horizontal Divider Line)
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .height(2.dp)
+                                                                    .background(Color.Black)
+                                                            )
+                                                            Row(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .height(30.dp)
+                                                            ) {
+                                                                val colorsToShow = mediaItem.colors.take(3)
+                                                                colorsToShow.forEachIndexed { idx, colorInt ->
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .weight(1f)
+                                                                            .fillMaxHeight()
+                                                                            .background(Color(colorInt))
+                                                                    ) {
+                                                                        if (idx != colorsToShow.lastIndex) {
+                                                                            Box(
+                                                                                modifier = Modifier
+                                                                                    .align(Alignment.CenterEnd)
+                                                                                    .width(2.dp)
+                                                                                    .fillMaxHeight()
+                                                                                    .background(Color.Black)
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
