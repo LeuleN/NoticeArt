@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.outlined.Colorize
+import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -28,6 +29,7 @@ import coil.compose.rememberAsyncImagePainter
 import android.content.Context
 import androidx.core.content.FileProvider
 import androidx.activity.result.PickVisualMediaRequest
+import com.example.userflowdemo.Texture
 import java.io.File
 
 private fun createImageUri(context: Context): Uri {
@@ -50,14 +52,18 @@ private fun createImageUri(context: Context): Uri {
 @Composable
 fun ImageMediaScreen(
     initialImageUri: String?,
-    onConfirm: (String) -> Unit,
+    initialColors: List<Int>,
+    initialTextures: List<Texture>,
+    onConfirm: (String, List<Int>, List<Texture>) -> Unit,
     onColorCapture: (String) -> Unit,
+    onTextureCapture: (String) -> Unit,
     onBack: () -> Unit
 ) {
     var imageUri by rememberSaveable { mutableStateOf(initialImageUri) }
     val context = LocalContext.current
     var showImageSourceDialog by rememberSaveable { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -143,7 +149,7 @@ fun ImageMediaScreen(
                     Image(
                         painter = rememberAsyncImagePainter(imageUri),
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -189,8 +195,23 @@ fun ImageMediaScreen(
                 }
 
                 IconButton(
+                    onClick = { imageUri?.let { onTextureCapture(it) } },
+                    enabled = imageUri != null,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .border(1.dp, if (imageUri != null) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                ) {
+                    Icon(
+                        Icons.Outlined.Crop, 
+                        contentDescription = "Texture Capture", 
+                        modifier = Modifier.size(32.dp),
+                        tint = if (imageUri != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    )
+                }
+
+                IconButton(
                     onClick = {
-                        imageUri?.let { onConfirm(it) }
+                        imageUri?.let { onConfirm(it, initialColors, initialTextures) }
                     },
                     enabled = imageUri != null,
                     modifier = Modifier

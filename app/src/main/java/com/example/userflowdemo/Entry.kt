@@ -3,9 +3,25 @@ package com.example.userflowdemo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+data class Texture(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val imageUri: String, // This could be the URI of the cropped bitmap or original + crop info
+    val name: String,
+    val isCustomName: Boolean = false,
+    val cropRect: CropRect? = null
+)
+
+data class CropRect(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float
+)
+
 data class MediaItem(
     val imageUri: String,
-    val colors: List<Int> = emptyList()
+    val colors: List<Int> = emptyList(),
+    val textures: List<Texture> = emptyList()
 )
 
 @Entity

@@ -91,21 +91,36 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addOrUpdateMediaItem(uri: String, colors: List<Int>, index: Int? = null) {
+    fun addOrUpdateMediaItem(uri: String, colors: List<Int>, textures: List<Texture> = emptyList(), index: Int? = null) {
         viewModelScope.launch {
             _draft.value?.let { draft ->
                 val updatedMedia = draft.media.toMutableList()
-                val newItem = MediaItem(imageUri = uri, colors = colors)
                 
                 if (index != null && index in updatedMedia.indices) {
-                    updatedMedia[index] = newItem
+                    val existingItem = updatedMedia[index]
+                    updatedMedia[index] = existingItem.copy(imageUri = uri, colors = colors, textures = textures)
                 } else {
-                    updatedMedia.add(newItem)
+                    updatedMedia.add(MediaItem(imageUri = uri, colors = colors, textures = textures))
                 }
                 
                 val updated = draft.copy(media = updatedMedia)
                 repository.update(updated)
                 _draft.value = updated
+            }
+        }
+    }
+
+    fun updateTextures(mediaIndex: Int, textures: List<Texture>) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                val updatedMedia = draft.media.toMutableList()
+                if (mediaIndex in updatedMedia.indices) {
+                    val currentItem = updatedMedia[mediaIndex]
+                    updatedMedia[mediaIndex] = currentItem.copy(textures = textures)
+                    val updated = draft.copy(media = updatedMedia)
+                    repository.update(updated)
+                    _draft.value = updated
+                }
             }
         }
     }
