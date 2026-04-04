@@ -1,8 +1,11 @@
 package com.example.userflowdemo.ui
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,12 +28,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
-import android.content.Context
 import androidx.core.content.FileProvider
-import androidx.activity.result.PickVisualMediaRequest
+import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.Texture
 import java.io.File
+import java.io.FileOutputStream
+import java.util.*
 
 private fun createImageUri(context: Context): Uri {
     val picturesDir = context.getExternalFilesDir("Pictures")
@@ -46,6 +49,27 @@ private fun createImageUri(context: Context): Uri {
         "${context.packageName}.provider",
         imageFile
     )
+}
+
+private fun saveUriToInternalStorage(context: Context, uri: Uri): String? {
+    // If it's already an internal file URI, just return it
+    if (uri.scheme == "file" || (uri.scheme == "content" && uri.authority == "${context.packageName}.provider")) {
+        return uri.toString()
+    }
+
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val mediaDir = File(context.filesDir, "media").apply { mkdirs() }
+        val file = File(mediaDir, "image_${UUID.randomUUID()}.jpg")
+        
+        FileOutputStream(file).use { outputStream ->
+            inputStream.copyTo(outputStream)
+        }
+        Uri.fromFile(file).toString()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,7 +92,10 @@ fun ImageMediaScreen(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
-            imageUri = it.toString()
+            val persistentUri = saveUriToInternalStorage(context, it)
+            if (persistentUri != null) {
+                imageUri = persistentUri
+            }
         }
     }
 

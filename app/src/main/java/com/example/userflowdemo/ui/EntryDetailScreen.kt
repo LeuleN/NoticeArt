@@ -113,7 +113,7 @@ fun EntryDetailScreen(
                         .fillMaxWidth()
                         .height(300.dp)
                 ) {
-                    // Full Image Preview: ONLY raw image, no overlays (FIX ISSUE 2)
+                    // Full Image Preview: ONLY raw image, no overlays
                     Image(
                         painter = rememberAsyncImagePainter(mediaItem.imageUri),
                         contentDescription = null,
@@ -261,9 +261,10 @@ fun EntryDetailScreen(
                                         modifier = Modifier
                                             .align(Alignment.BottomCenter)
                                             .fillMaxWidth()
+                                            .fillMaxHeight(0.25f)
                                             .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                     ) {
-                                        // Clear Visual Separation (FIX ISSUE 1)
+                                        // Clear Visual Separation (Horizontal Divider Line)
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -273,7 +274,7 @@ fun EntryDetailScreen(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(64.dp)
+                                                .weight(1f)
                                         ) {
                                             val texturesToShow = mediaItem.textures.take(3)
                                             texturesToShow.forEachIndexed { index, texture ->
@@ -303,19 +304,44 @@ fun EntryDetailScreen(
                                         }
                                     }
                                 } else if (mediaItem.colors.isNotEmpty()) {
-                                    Row(
+                                    Column(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(60.dp)
                                             .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .fillMaxHeight(0.25f)
+                                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                     ) {
-                                        mediaItem.colors.take(3).forEach { colorInt ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight()
-                                                    .background(Color(colorInt))
-                                            )
+                                        // Clear Visual Separation (Horizontal Divider Line)
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(2.dp)
+                                                .background(Color.Black)
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f)
+                                        ) {
+                                            val colorsToShow = mediaItem.colors.take(3)
+                                            colorsToShow.forEachIndexed { index, colorInt ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                        .background(Color(colorInt))
+                                                ) {
+                                                    if (index != colorsToShow.lastIndex) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .align(Alignment.CenterEnd)
+                                                                .width(2.dp)
+                                                                .fillMaxHeight()
+                                                                .background(Color.Black)
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

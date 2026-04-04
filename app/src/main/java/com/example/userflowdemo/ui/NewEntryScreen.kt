@@ -467,6 +467,7 @@ fun NewEntryScreen(
                                                             modifier = Modifier
                                                                 .align(Alignment.BottomCenter)
                                                                 .fillMaxWidth()
+                                                                .fillMaxHeight(0.25f)
                                                                 .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                                         ) {
                                                             // Clear Visual Separation (Horizontal Divider Line)
@@ -479,7 +480,7 @@ fun NewEntryScreen(
                                                             Row(
                                                                 modifier = Modifier
                                                                     .fillMaxWidth()
-                                                                    .height(64.dp)
+                                                                    .weight(1f)
                                                             ) {
                                                                 val texturesToShow = mediaItem.textures.take(3)
                                                                 texturesToShow.forEachIndexed { idx, texture ->
@@ -513,6 +514,7 @@ fun NewEntryScreen(
                                                             modifier = Modifier
                                                                 .align(Alignment.BottomCenter)
                                                                 .fillMaxWidth()
+                                                                .fillMaxHeight(0.25f)
                                                                 .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                                         ) {
                                                             // Clear Visual Separation (Horizontal Divider Line)
@@ -525,7 +527,7 @@ fun NewEntryScreen(
                                                             Row(
                                                                 modifier = Modifier
                                                                     .fillMaxWidth()
-                                                                    .height(30.dp)
+                                                                    .weight(1f)
                                                             ) {
                                                                 val colorsToShow = mediaItem.colors.take(3)
                                                                 colorsToShow.forEachIndexed { idx, colorInt ->

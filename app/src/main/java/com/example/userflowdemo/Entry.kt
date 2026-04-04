@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 data class Texture(
     val id: String = java.util.UUID.randomUUID().toString(),
-    val imageUri: String,
+    val imageUri: String?, 
     val name: String,
     val isCustomName: Boolean = false,
     val cropRect: CropRect? = null
@@ -20,7 +20,7 @@ data class CropRect(
 
 data class MediaItem(
     val id: String = java.util.UUID.randomUUID().toString(),
-    val imageUri: String,
+    val imageUri: String?,
     val colors: List<Int> = emptyList(),
     val textures: List<Texture> = emptyList()
 )

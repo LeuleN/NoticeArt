@@ -15,6 +15,9 @@ class Converters {
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
                 
+                val id = obj.optString("id", java.util.UUID.randomUUID().toString())
+                val uri = obj.optString("uri").takeIf { it.isNotEmpty() }
+
                 val colorsArray = obj.optJSONArray("colors")
                 val colors = mutableListOf<Int>()
                 if (colorsArray != null) {
@@ -41,7 +44,7 @@ class Converters {
                         textures.add(
                             Texture(
                                 id = texObj.getString("id"),
-                                imageUri = texObj.getString("uri"),
+                                imageUri = texObj.optString("uri").takeIf { it.isNotEmpty() },
                                 name = texObj.getString("name"),
                                 isCustomName = texObj.optBoolean("isCustomName", false),
                                 cropRect = cropRect
@@ -52,7 +55,8 @@ class Converters {
 
                 list.add(
                     MediaItem(
-                        imageUri = obj.getString("uri"),
+                        id = id,
+                        imageUri = uri,
                         colors = colors,
                         textures = textures
                     )
@@ -69,7 +73,8 @@ class Converters {
         val jsonArray = JSONArray()
         list.forEach { item ->
             val obj = JSONObject()
-            obj.put("uri", item.imageUri)
+            obj.put("id", item.id)
+            obj.put("uri", item.imageUri ?: "")
             
             val colorsArray = JSONArray()
             item.colors.forEach { colorsArray.put(it) }
@@ -79,7 +84,7 @@ class Converters {
             item.textures.forEach { tex ->
                 val texObj = JSONObject()
                 texObj.put("id", tex.id)
-                texObj.put("uri", tex.imageUri)
+                texObj.put("uri", tex.imageUri ?: "")
                 texObj.put("name", tex.name)
                 texObj.put("isCustomName", tex.isCustomName)
                 
