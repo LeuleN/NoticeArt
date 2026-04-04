@@ -465,19 +465,35 @@ fun NewEntryScreen(
                                                     if (mediaItem.textures.isNotEmpty()) {
                                                         Row(
                                                             modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .height(30.dp)
                                                                 .align(Alignment.BottomCenter)
+                                                                .fillMaxWidth()
+                                                                .height(64.dp)
+                                                                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                                         ) {
-                                                            mediaItem.textures.take(3).forEach { texture ->
-                                                                Image(
-                                                                    painter = rememberAsyncImagePainter(texture.imageUri),
-                                                                    contentDescription = texture.name,
-                                                                    contentScale = ContentScale.Crop,
+                                                            val texturesToShow = mediaItem.textures.take(3)
+                                                            texturesToShow.forEachIndexed { idx, texture ->
+                                                                Box(
                                                                     modifier = Modifier
                                                                         .weight(1f)
                                                                         .fillMaxHeight()
-                                                                )
+                                                                ) {
+                                                                    Image(
+                                                                        painter = rememberAsyncImagePainter(texture.imageUri),
+                                                                        contentDescription = texture.name,
+                                                                        contentScale = ContentScale.Crop,
+                                                                        modifier = Modifier.fillMaxSize()
+                                                                    )
+
+                                                                    if (idx != texturesToShow.lastIndex) {
+                                                                        Box(
+                                                                            modifier = Modifier
+                                                                                .align(Alignment.CenterEnd)
+                                                                                .width(2.dp)
+                                                                                .fillMaxHeight()
+                                                                                .background(Color.Black)
+                                                                        )
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     } else if (mediaItem.colors.isNotEmpty()) {
