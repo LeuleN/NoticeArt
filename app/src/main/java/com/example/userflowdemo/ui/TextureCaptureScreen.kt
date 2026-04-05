@@ -43,6 +43,7 @@ fun TextureCaptureScreen(
     val textures = mediaItem?.textures ?: emptyList()
     
     val textureState by viewModel.textureState.collectAsState()
+    val textureCount by viewModel.textureCount.collectAsState()
 
     // Ordering logic: Custom-named textures FIRST, then default textures
     val sortedTextures = remember(textures) {
@@ -156,12 +157,15 @@ fun TextureCaptureScreen(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp),
+                    .height(150.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 item {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Surface(
                             onClick = { viewModel.detectTextures(context, imageUri) },
                             shape = RoundedCornerShape(24.dp),
@@ -177,7 +181,38 @@ fun TextureCaptureScreen(
                                 Text("notice textures", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        // Texture Count Stepper
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.setTextureCount(textureCount - 1) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                            }
+                            
+                            Text(
+                                text = textureCount.toString(),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            
+                            IconButton(
+                                onClick = { viewModel.setTextureCount(textureCount + 1) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Increase")
+                            }
+                        }
                     }
                 }
 

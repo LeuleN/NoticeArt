@@ -44,6 +44,10 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     private val _textureState = MutableStateFlow<TextureDetectionState>(TextureDetectionState.Idle)
     val textureState: StateFlow<TextureDetectionState> = _textureState
 
+    // User-controlled texture detection count
+    private val _textureCount = MutableStateFlow(6)
+    val textureCount: StateFlow<Int> = _textureCount
+
     val entries: StateFlow<List<Entry>> =
         repository.allEntries
             .map { list -> list.filter { !it.isDraft } }
@@ -79,6 +83,10 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setTextureCount(count: Int) {
+        _textureCount.value = count.coerceIn(4, 15)
+    }
+
     fun suggestColorsForImage(context: Context, uriString: String) {
         viewModelScope.launch {
             _aiState.value = AiState.Loading
@@ -100,6 +108,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun detectTextures(context: Context, uriString: String) {
         viewModelScope.launch {
+            val count = _textureCount.value
             _textureState.value = TextureDetectionState.Loading
             try {
                 val uri = Uri.parse(uriString)
@@ -107,7 +116,10 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (bitmap != null) {
                     val rects = withContext(Dispatchers.Default) {
-                        textureService.getProminentTextureAreas(bitmap)
+                        textureService.getProminentTextureAreas(
+                            bitmap = bitmap, 
+                            textureCount = count
+                        )
                     }
                     val croppedBitmaps = textureService.cropTextureBitmaps(bitmap, rects)
                     val uris = croppedBitmaps.mapNotNull { 
@@ -217,7 +229,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                         updatedMedia.add(MediaItem(id = mediaId, imageUri = uri, colors = colors, textures = textures))
                     }
                 } else {
-                    updatedMedia.add(MediaItem(imageUri = uri, colors = colors, textures = textures))
+                    updatedMedia.add(MediaItem(id = mediaId ?: java.util.UUID.randomUUID().toString(), imageUri = uri, colors = colors, textures = textures))
                 }
                 
                 val updated = draft.copy(media = updatedMedia)
