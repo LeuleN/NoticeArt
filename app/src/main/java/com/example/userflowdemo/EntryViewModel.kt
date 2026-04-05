@@ -2,6 +2,7 @@ package com.example.userflowdemo
 
 import android.app.Application
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
@@ -9,8 +10,12 @@ import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.userflowdemo.utils.AiColorService
+import com.example.userflowdemo.utils.ImageUtils
+import com.example.userflowdemo.utils.TextureDetectionService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed class AiState {
     object Idle : AiState()
@@ -19,14 +24,25 @@ sealed class AiState {
     data class Error(val message: String) : AiState()
 }
 
+sealed class TextureDetectionState {
+    object Idle : TextureDetectionState()
+    object Loading : TextureDetectionState()
+    data class Success(val suggestedTextures: List<Uri>) : TextureDetectionState()
+    data class Error(val message: String) : TextureDetectionState()
+}
+
 class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = EntryDatabase.getDatabase(application)
     private val repository = EntryRepository(database.entryDao())
     private val aiService = AiColorService()
+    private val textureService = TextureDetectionService()
 
     private val _aiState = MutableStateFlow<AiState>(AiState.Idle)
     val aiState: StateFlow<AiState> = _aiState
+
+    private val _textureState = MutableStateFlow<TextureDetectionState>(TextureDetectionState.Idle)
+    val textureState: StateFlow<TextureDetectionState> = _textureState
 
     val entries: StateFlow<List<Entry>> =
         repository.allEntries
@@ -68,16 +84,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             _aiState.value = AiState.Loading
             try {
                 val uri = Uri.parse(uriString)
-                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    val source = ImageDecoder.createSource(context.contentResolver, uri)
-                    ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-                        decoder.isMutableRequired = true
-                    }
-                } else {
-                    context.contentResolver.openInputStream(uri)?.use {
-                        BitmapFactory.decodeStream(it)
-                    }
-                }
+                val bitmap = loadBitmapFromUri(context, uri)
                 
                 if (bitmap != null) {
                     val colors = aiService.suggestColors(bitmap)
@@ -91,8 +98,54 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun detectTextures(context: Context, uriString: String) {
+        viewModelScope.launch {
+            _textureState.value = TextureDetectionState.Loading
+            try {
+                val uri = Uri.parse(uriString)
+                val bitmap = loadBitmapFromUri(context, uri)
+                
+                if (bitmap != null) {
+                    val rects = withContext(Dispatchers.Default) {
+                        textureService.getProminentTextureAreas(bitmap)
+                    }
+                    val croppedBitmaps = textureService.cropTextureBitmaps(bitmap, rects)
+                    val uris = croppedBitmaps.mapNotNull { 
+                        ImageUtils.saveBitmapToInternalStorage(context, it)
+                    }
+                    _textureState.value = TextureDetectionState.Success(uris)
+                } else {
+                    _textureState.value = TextureDetectionState.Error("Could not load image")
+                }
+            } catch (e: Exception) {
+                _textureState.value = TextureDetectionState.Error(e.message ?: "Texture detection failed")
+            }
+        }
+    }
+
+    private suspend fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val source = ImageDecoder.createSource(context.contentResolver, uri)
+                ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                    decoder.isMutableRequired = true
+                }
+            } else {
+                context.contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it)
+                }
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun resetAiState() {
         _aiState.value = AiState.Idle
+    }
+
+    fun resetTextureState() {
+        _textureState.value = TextureDetectionState.Idle
     }
 
     fun createDraft(
