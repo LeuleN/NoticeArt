@@ -253,6 +253,10 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             _draft.value?.let { draft ->
                 val updatedMedia = draft.media.map { item ->
                     if (item.id == mediaId) {
+                        // Check if texture with same imageUri already exists
+                        val duplicate = item.textures.any { it.imageUri == texture.imageUri }
+                        if (duplicate) return@map item
+
                         val exists = item.textures.any { it.id == texture.id }
                         val newTextures = if (exists) {
                             item.textures.map { if (it.id == texture.id) texture else it }
@@ -260,6 +264,57 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                             item.textures + texture
                         }
                         item.copy(textures = newTextures)
+                    } else item
+                }
+                val updated = draft.copy(media = updatedMedia)
+                _draft.value = updated
+                repository.update(updated)
+            }
+        }
+    }
+
+    fun addAllDetectedTextures(mediaId: String) {
+        val currentState = _textureState.value
+        if (currentState is TextureDetectionState.Success) {
+            viewModelScope.launch {
+                _draft.value?.let { draft ->
+                    val mediaItem = draft.media.find { it.id == mediaId } ?: return@launch
+                    val currentUris = mediaItem.textures.mapNotNull { it.imageUri }.toSet()
+                    
+                    val filteredSuggestions = currentState.suggestedTextures.filter { it.toString() !in currentUris }
+                    if (filteredSuggestions.isEmpty()) return@launch
+
+                    val newTextures = filteredSuggestions.mapIndexed { index, uri ->
+                        Texture(
+                            imageUri = uri.toString(),
+                            name = "Auto Texture ${mediaItem.textures.size + index + 1}"
+                        )
+                    }
+                    
+                    val updatedMedia = draft.media.map { item ->
+                        if (item.id == mediaId) {
+                            item.copy(textures = item.textures + newTextures)
+                        } else item
+                    }
+                    val updated = draft.copy(media = updatedMedia)
+                    _draft.value = updated
+                    repository.update(updated)
+                }
+            }
+        }
+    }
+
+    fun renameTexture(mediaId: String, textureId: String, newName: String) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                val updatedMedia = draft.media.map { item ->
+                    if (item.id == mediaId) {
+                        val updatedTextures = item.textures.map { texture ->
+                            if (texture.id == textureId) {
+                                texture.copy(name = newName, isCustomName = true)
+                            } else texture
+                        }
+                        item.copy(textures = updatedTextures)
                     } else item
                 }
                 val updated = draft.copy(media = updatedMedia)

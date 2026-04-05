@@ -45,10 +45,23 @@ fun TextureCaptureScreen(
     val textureState by viewModel.textureState.collectAsState()
     val textureCount by viewModel.textureCount.collectAsState()
 
+    var textureToRename by remember { mutableStateOf<Texture?>(null) }
+
     // Ordering logic: Custom-named textures FIRST, then default textures
     val sortedTextures = remember(textures) {
         val (custom, default) = textures.partition { it.isCustomName }
         custom.sortedBy { it.name } + default.sortedBy { it.name }
+    }
+
+    if (textureToRename != null) {
+        RenameDialog(
+            initialName = textureToRename!!.name,
+            onDismiss = { textureToRename = null },
+            onSave = { newName ->
+                viewModel.renameTexture(mediaId, textureToRename!!.id, newName)
+                textureToRename = null
+            }
+        )
     }
 
     Scaffold(
@@ -106,8 +119,17 @@ fun TextureCaptureScreen(
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        IconButton(onClick = { viewModel.resetTextureState() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear Suggestions", modifier = Modifier.size(16.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Button(
+                                onClick = { viewModel.addAllDetectedTextures(mediaId) },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Add All", style = MaterialTheme.typography.labelLarge)
+                            }
+                            IconButton(onClick = { viewModel.resetTextureState() }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear Suggestions", modifier = Modifier.size(16.dp))
+                            }
                         }
                     }
                     LazyRow(
@@ -234,7 +256,8 @@ fun TextureCaptureScreen(
                         onDelete = {
                             viewModel.removeTextureFromImage(mediaId, texture.id)
                         },
-                        onClick = { onEditTexture(texture) }
+                        onRename = { textureToRename = texture },
+                        onEditCrop = { onEditTexture(texture) }
                     )
                 }
             }
@@ -262,8 +285,11 @@ fun TextureCaptureScreen(
 fun TextureItem(
     texture: Texture,
     onDelete: () -> Unit,
-    onClick: () -> Unit
+    onRename: () -> Unit,
+    onEditCrop: () -> Unit
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.width(80.dp)
@@ -277,7 +303,7 @@ fun TextureItem(
                     .fillMaxSize()
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-                    .clickable { onClick() }
+                    .clickable { onRename() }
             )
             
             Box(
@@ -288,10 +314,41 @@ fun TextureItem(
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface)
                     .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    .clickable { onDelete() },
+                    .clickable { showMenu = true },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Close, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.MoreVert, contentDescription = "Options", modifier = Modifier.size(16.dp))
+                
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Rename") },
+                        onClick = {
+                            showMenu = false
+                            onRename()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Edit Crop") },
+                        onClick = {
+                            showMenu = false
+                            onEditCrop()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Crop, contentDescription = null) }
+                    )
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text("Remove", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                    )
+                }
             }
         }
         Text(
@@ -302,4 +359,40 @@ fun TextureItem(
             modifier = Modifier.padding(top = 4.dp).fillMaxWidth()
         )
     }
+}
+
+@Composable
+fun RenameDialog(
+    initialName: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(initialName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Texture") },
+        text = {
+            TextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (name.isNotBlank()) onSave(name) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
