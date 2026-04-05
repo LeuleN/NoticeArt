@@ -3,12 +3,10 @@ package com.example.userflowdemo
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import com.example.userflowdemo.ui.NewEntryScreen
 import com.example.userflowdemo.ui.theme.UserFlowDemoTheme
 import org.junit.Rule
@@ -36,7 +34,11 @@ class NewEntryUiTest {
                     onBackToHome = {},
                     onBackToDetail = {},
                     onAutoSave = {},
-                    onNavigateToImageMedia = {}
+                    onNavigateToImageMedia = {},
+                    onRemoveMedia = {},
+                    onAddAudioFromFiles = {},
+                    onRecordAudioNow = {},
+                    onRemoveAudio = {}
                 )
             }
         }
@@ -66,7 +68,11 @@ class NewEntryUiTest {
                     onBackToHome = { backToHomeCalled = true },
                     onBackToDetail = {},
                     onAutoSave = {},
-                    onNavigateToImageMedia = {}
+                    onNavigateToImageMedia = {},
+                    onRemoveMedia = {},
+                    onAddAudioFromFiles = {},
+                    onRecordAudioNow = {},
+                    onRemoveAudio = {}
                 )
             }
         }
@@ -102,7 +108,11 @@ class NewEntryUiTest {
                     onBackToHome = {},
                     onBackToDetail = { backToDetailCalled = true },
                     onAutoSave = {},
-                    onNavigateToImageMedia = {}
+                    onNavigateToImageMedia = {},
+                    onRemoveMedia = {},
+                    onAddAudioFromFiles = {},
+                    onRecordAudioNow = {},
+                    onRemoveAudio = {}
                 )
             }
         }

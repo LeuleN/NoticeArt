@@ -27,7 +27,7 @@ class DraftUtilsTest {
 
     @Test
     fun `isDraftEmpty returns false if media is present`() {
-        val entry = Entry(title = "", media = listOf(MediaItem("uri")))
+        val entry = Entry(title = "", media = listOf(MediaItem(imageUri = "uri")))
         assertFalse(isDraftEmpty(entry))
     }
 
@@ -58,8 +58,8 @@ class DraftUtilsTest {
 
     @Test
     fun `hasEntryChanged returns true if media differs`() {
-        val original = Entry(id = 1, title = "T", media = listOf(MediaItem("1")))
-        val current = Entry(id = 1, title = "T", media = listOf(MediaItem("2")))
+        val original = Entry(id = 1, title = "T", media = listOf(MediaItem(id = "1", imageUri = "1")))
+        val current = Entry(id = 1, title = "T", media = listOf(MediaItem(id = "1", imageUri = "2")))
         assertTrue(hasEntryChanged(original, current))
     }
 
@@ -72,8 +72,9 @@ class DraftUtilsTest {
 
     @Test
     fun `hasEntryChanged returns false if all relevant fields are same`() {
-        val original = Entry(id = 1, title = "T", observation = "O", media = listOf(MediaItem("U")))
-        val current = Entry(id = 1, title = "T", observation = "O", media = listOf(MediaItem("U")))
+        val mediaId = "fixed-id"
+        val original = Entry(id = 1, title = "T", observation = "O", media = listOf(MediaItem(id = mediaId, imageUri = "U")))
+        val current = Entry(id = 1, title = "T", observation = "O", media = listOf(MediaItem(id = mediaId, imageUri = "U")))
         assertFalse(hasEntryChanged(original, current))
     }
 }
