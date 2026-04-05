@@ -1,9 +1,11 @@
 package com.example.userflowdemo.utils
+
 import android.graphics.Bitmap
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
 import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
+import kotlin.math.hypot
 
 class TextureDetectionService {
 
@@ -59,10 +61,36 @@ class TextureDetectionService {
         laplacianMat.release()
         bmp32.recycle()
 
-        // 4. Sort by score descending and take top 6
-        return textureScores.sortedByDescending { it.second }
-            .take(6)
-            .map { it.first }
+        // 4. Apply Non-Maximum Suppression (Spatial Diversity Filter)
+        // Sort by score descending
+        val sortedScores = textureScores.sortedByDescending { it.second }
+        val selectedRects = mutableListOf<Rect>()
+        
+        // Minimum Euclidean distance between centers to be considered "diverse"
+        val minDistanceThreshold = cellWidth * 2.0 
+
+        for (candidate in sortedScores) {
+            val rect = candidate.first
+            val centerX = rect.x + rect.width / 2.0
+            val centerY = rect.y + rect.height / 2.0
+
+            val isTooClose = selectedRects.any { selected ->
+                val sCenterX = selected.x + selected.width / 2.0
+                val sCenterY = selected.y + selected.height / 2.0
+                // Calculate Euclidean distance between centers
+                val distance = hypot(centerX - sCenterX, centerY - sCenterY)
+                distance < minDistanceThreshold
+            }
+
+            if (!isTooClose) {
+                selectedRects.add(rect)
+            }
+
+            // Stop when we have enough diverse textures
+            if (selectedRects.size >= 6) break
+        }
+
+        return selectedRects
     }
 
     fun cropTextureBitmaps(original: Bitmap, rects: List<Rect>): List<Bitmap> {
