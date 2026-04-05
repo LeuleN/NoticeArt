@@ -238,6 +238,7 @@ fun EntryApp(
                 ColorCaptureScreen(
                     imageUri = uri,
                     initialColors = mediaItem?.colors ?: emptyList(),
+                    viewModel = viewModel,
                     onConfirm = { colors ->
                         viewModel.addOrUpdateMediaItem(uri, colors, mediaItem?.textures ?: emptyList(), editingMediaIndex?.takeIf { it >= 0 }, currentMediaId)
                         colorCaptureUri = null

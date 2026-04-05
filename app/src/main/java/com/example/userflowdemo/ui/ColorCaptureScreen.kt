@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Colorize
@@ -31,6 +32,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import com.example.userflowdemo.AiState
+import com.example.userflowdemo.EntryViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +41,7 @@ import kotlinx.coroutines.launch
 fun ColorCaptureScreen(
     imageUri: String,
     initialColors: List<Int>,
+    viewModel: EntryViewModel,
     onConfirm: (List<Int>) -> Unit,
     onBack: () -> Unit
 ) {
@@ -46,6 +50,16 @@ fun ColorCaptureScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    
+    val aiState by viewModel.aiState.collectAsState()
+
+    LaunchedEffect(aiState) {
+        if (aiState is AiState.Success) {
+            val suggested = (aiState as AiState.Success).colors
+            capturedColors = (capturedColors + suggested).distinct()
+            viewModel.resetAiState()
+        }
+    }
 
     val bitmap = remember(imageUri) {
         try {
@@ -136,7 +150,14 @@ fun ColorCaptureScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            if (aiState is AiState.Loading) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Color List Preview
             LazyRow(
@@ -146,6 +167,25 @@ fun ColorCaptureScreen(
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                item {
+                    Button(
+                        onClick = { viewModel.suggestColorsForImage(context, imageUri) },
+                        enabled = aiState !is AiState.Loading,
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        modifier = Modifier.height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Suggest")
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+
                 item {
                     IconButton(
                         onClick = { isEyedropperActive = !isEyedropperActive },

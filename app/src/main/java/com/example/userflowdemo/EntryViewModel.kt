@@ -1,15 +1,32 @@
 package com.example.userflowdemo
 
 import android.app.Application
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.userflowdemo.utils.AiColorService
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+
+sealed class AiState {
+    object Idle : AiState()
+    object Loading : AiState()
+    data class Success(val colors: List<Int>) : AiState()
+    data class Error(val message: String) : AiState()
+}
 
 class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = EntryDatabase.getDatabase(application)
     private val repository = EntryRepository(database.entryDao())
+    private val aiService = AiColorService()
+
+    private val _aiState = MutableStateFlow<AiState>(AiState.Idle)
+    val aiState: StateFlow<AiState> = _aiState
 
     val entries: StateFlow<List<Entry>> =
         repository.allEntries
@@ -44,6 +61,38 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _draft.value = repository.getDraft()
         }
+    }
+
+    fun suggestColorsForImage(context: Context, uriString: String) {
+        viewModelScope.launch {
+            _aiState.value = AiState.Loading
+            try {
+                val uri = Uri.parse(uriString)
+                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val source = ImageDecoder.createSource(context.contentResolver, uri)
+                    ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                        decoder.isMutableRequired = true
+                    }
+                } else {
+                    context.contentResolver.openInputStream(uri)?.use {
+                        BitmapFactory.decodeStream(it)
+                    }
+                }
+                
+                if (bitmap != null) {
+                    val colors = aiService.suggestColors(bitmap)
+                    _aiState.value = AiState.Success(colors)
+                } else {
+                    _aiState.value = AiState.Error("Could not load image")
+                }
+            } catch (e: Exception) {
+                _aiState.value = AiState.Error(e.message ?: "AI Suggestion failed")
+            }
+        }
+    }
+
+    fun resetAiState() {
+        _aiState.value = AiState.Idle
     }
 
     fun createDraft(
