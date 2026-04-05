@@ -79,4 +79,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation(libs.google.generativeai)
+    
+    // Palette API for local color extraction
+    implementation("androidx.palette:palette-ktx:1.0.0")
 }

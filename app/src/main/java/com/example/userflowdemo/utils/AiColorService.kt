@@ -1,42 +1,40 @@
 package com.example.userflowdemo.utils
 
 import android.graphics.Bitmap
-import android.graphics.Color
-import com.example.userflowdemo.BuildConfig
-import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.content
+import androidx.palette.graphics.Palette
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class AiColorService {
-    private val generativeModel = GenerativeModel(
-        modelName = "gemini-1.5-flash-latest",
-        apiKey = BuildConfig.GEMINI_API_KEY
-    )
 
-    suspend fun suggestColors(bitmap: Bitmap): List<Int> {
-        val prompt = "Extract 5-6 visually prominent and high-contrast colors from this image. " +
-                     "Return ONLY a list of hex strings like [#RRGGBB, #RRGGBB]."
-        
-        return try {
-            val response = generativeModel.generateContent(
-                content {
-                    image(bitmap)
-                    text(prompt)
-                }
-            )
-            parseHexColors(response.text ?: "")
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun parseHexColors(text: String): List<Int> {
-        val hexRegex = Regex("#[0-9A-Fa-f]{6}")
-        return hexRegex.findAll(text).map { 
+    /**
+     * Extracts prominent colors from the image using the Android Palette API.
+     * This replaces the Gemini-based suggestion with a more reliable local extraction.
+     */
+    suspend fun suggestColors(bitmap: Bitmap): List<Int> = withContext(Dispatchers.Default) {
+        suspendCoroutine { continuation ->
             try {
-                Color.parseColor(it.value)
+                // Generate the palette.
+                // .maximumColorCount(32) tells the engine to look at 32 color clusters
+                Palette.from(bitmap).maximumColorCount(32).generate { palette ->
+                    val colors = mutableListOf<Int>()
+
+                    // Get all swatches (color clusters) and sort them by population (frequency)
+                    val swatches = palette?.swatches?.sortedByDescending { it.population }
+
+                    // Take the top 6 (or fewer if the image is very simple)
+                    swatches?.take(6)?.forEach { swatch ->
+                        colors.add(swatch.rgb)
+                    }
+
+                    continuation.resume(colors)
+                }
             } catch (e: Exception) {
-                null
+                android.util.Log.e("AiColorService", "Error extracting colors", e)
+                continuation.resume(emptyList())
             }
-        }.filterNotNull().toList()
+        }
     }
 }
