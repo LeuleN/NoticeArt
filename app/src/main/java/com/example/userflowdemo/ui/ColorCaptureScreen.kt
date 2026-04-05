@@ -16,8 +16,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material3.*
@@ -53,14 +55,7 @@ fun ColorCaptureScreen(
     val scope = rememberCoroutineScope()
     
     val aiState by viewModel.aiState.collectAsState()
-
-    LaunchedEffect(aiState) {
-        if (aiState is AiState.Success) {
-            val suggested = (aiState as AiState.Success).colors
-            capturedColors = (capturedColors + suggested).distinct()
-            viewModel.resetAiState()
-        }
-    }
+    val colorCount by viewModel.colorCount.collectAsState()
 
     val bitmap = remember(imageUri) {
         try {
@@ -149,48 +144,140 @@ fun ColorCaptureScreen(
                             }
                         }
                 )
-            }
 
-            if (aiState is AiState.Loading) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.primary
-                )
+                if (aiState is AiState.Loading) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Color List Preview
+            // Suggested Colors Section (matches Texture screen style)
+            if (aiState is AiState.Success) {
+                val suggestions = (aiState as AiState.Success).colors
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Detected Colors",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        IconButton(onClick = { viewModel.resetAiState() }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear Suggestions", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(suggestions) { colorInt ->
+                            val isAlreadyCaptured = capturedColors.contains(colorInt)
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(colorInt))
+                                    .border(
+                                        width = 2.dp,
+                                        color = if (isAlreadyCaptured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                        shape = CircleShape
+                                    )
+                                    .clickable(!isAlreadyCaptured) {
+                                        capturedColors = capturedColors + colorInt
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isAlreadyCaptured) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = if (Color(colorInt).luminance() > 0.5f) Color.Black else Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = if (Color(colorInt).luminance() > 0.5f) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Controls and Selected Colors
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp),
-                horizontalArrangement = Arrangement.Start,
+                    .height(130.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 item {
-                    Button(
-                        onClick = { viewModel.suggestColorsForImage(context, imageUri) },
-                        enabled = aiState !is AiState.Loading,
-                        shape = CircleShape,
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        modifier = Modifier.height(56.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "Notice Colors",
-                            fontWeight = FontWeight.Medium
-                        )
+                        Surface(
+                            onClick = { viewModel.suggestColorsForImage(context, imageUri) },
+                            enabled = aiState !is AiState.Loading,
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text("notice colors", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        // Color Count Stepper
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.setColorCount(colorCount - 1) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                            }
+                            
+                            Text(
+                                text = colorCount.toString(),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            
+                            IconButton(
+                                onClick = { viewModel.setColorCount(colorCount + 1) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Increase")
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
                 }
 
                 item {
@@ -214,7 +301,6 @@ fun ColorCaptureScreen(
                             tint = if (isEyedropperActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
                 }
 
                 items(capturedColors) { colorInt ->
@@ -234,11 +320,10 @@ fun ColorCaptureScreen(
                                     .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                             )
                             
-                            // Delete button (overlay X)
                             Box(
                                 modifier = Modifier
                                     .offset(x = 4.dp, y = (-4).dp)
-                                    .size(20.dp)
+                                    .size(24.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.surface)
                                     .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
@@ -250,7 +335,7 @@ fun ColorCaptureScreen(
                                 Icon(
                                     Icons.Default.Close,
                                     contentDescription = "Remove Color",
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(16.dp),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
@@ -281,4 +366,9 @@ fun ColorCaptureScreen(
             }
         }
     }
+}
+
+// Extension to calculate luminance for adaptive icon tinting
+private fun Color.luminance(): Float {
+    return 0.299f * red + 0.587f * green + 0.114f * blue
 }

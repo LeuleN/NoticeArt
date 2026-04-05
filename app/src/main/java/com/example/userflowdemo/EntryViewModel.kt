@@ -48,6 +48,10 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     private val _textureCount = MutableStateFlow(6)
     val textureCount: StateFlow<Int> = _textureCount
 
+    // User-controlled color detection count
+    private val _colorCount = MutableStateFlow(6)
+    val colorCount: StateFlow<Int> = _colorCount
+
     val entries: StateFlow<List<Entry>> =
         repository.allEntries
             .map { list -> list.filter { !it.isDraft } }
@@ -87,15 +91,20 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         _textureCount.value = count.coerceIn(4, 15)
     }
 
+    fun setColorCount(count: Int) {
+        _colorCount.value = count.coerceIn(4, 10)
+    }
+
     fun suggestColorsForImage(context: Context, uriString: String) {
         viewModelScope.launch {
+            val count = _colorCount.value
             _aiState.value = AiState.Loading
             try {
                 val uri = Uri.parse(uriString)
                 val bitmap = loadBitmapFromUri(context, uri)
                 
                 if (bitmap != null) {
-                    val colors = aiService.suggestColors(bitmap)
+                    val colors = aiService.suggestColors(bitmap, count)
                     _aiState.value = AiState.Success(colors)
                 } else {
                     _aiState.value = AiState.Error("Could not load image")
