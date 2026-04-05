@@ -166,8 +166,20 @@ fun ColorCaptureScreen(
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        IconButton(onClick = { viewModel.resetAiState() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear Suggestions", modifier = Modifier.size(16.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Button(
+                                onClick = {
+                                    val newColors = suggestions.filter { it !in capturedColors }
+                                    capturedColors = capturedColors + newColors
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Add All", style = MaterialTheme.typography.labelLarge)
+                            }
+                            IconButton(onClick = { viewModel.resetAiState() }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear Suggestions", modifier = Modifier.size(16.dp))
+                            }
                         }
                     }
                     LazyRow(
