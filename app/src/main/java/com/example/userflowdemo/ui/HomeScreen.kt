@@ -14,8 +14,14 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -33,23 +39,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.userflowdemo.Entry
+import com.example.userflowdemo.EntrySortOption
 import com.example.userflowdemo.components.AddCard
 import com.example.userflowdemo.components.DraftCard
 import com.example.userflowdemo.components.EntryCard
 import com.example.userflowdemo.components.GridScrollbar
 
-/**
- * Modern card-based grid layout for the Home Screen.
- */
 @Composable
 fun HomeScreen(
     userName: String,
     entries: List<Entry>,
     draft: Entry?,
+    sortOption: EntrySortOption,
     snackbarHostState: SnackbarHostState,
     onAddClick: () -> Unit,
     onDraftClick: () -> Unit,
-    onEntryClick: (Entry) -> Unit
+    onEntryClick: (Entry) -> Unit,
+    onSortOptionChange: (EntrySortOption) -> Unit
 ) {
     var showDraftDialog by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
@@ -92,7 +98,11 @@ fun HomeScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            HomeHeader(userName = userName)
+            HomeHeader(
+                userName = userName,
+                selectedSortOption = sortOption,
+                onSortOptionChange = onSortOptionChange
+            )
 
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -109,7 +119,6 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // 1. "+" Create Card (First Item)
                     item {
                         AddCard(onAddClick = {
                             if (draft == null) {
@@ -120,15 +129,13 @@ fun HomeScreen(
                         })
                     }
 
-                    // 2. Draft Card (inside grid if it exists)
                     if (draft != null) {
                         item {
                             DraftCard(draft = draft, onDraftClick = onDraftClick)
                         }
                     }
 
-                    // 3. Entry Cards
-                    items(entries.filter { !it.isDraft }) { entry ->
+                    items(entries) { entry ->
                         EntryCard(
                             entry = entry,
                             onClick = { onEntryClick(entry) }
@@ -149,23 +156,65 @@ fun HomeScreen(
 }
 
 @Composable
-fun HomeHeader(userName: String) {
-    Column(
+fun HomeHeader(
+    userName: String,
+    selectedSortOption: EntrySortOption,
+    onSortOptionChange: (EntrySortOption) -> Unit
+) {
+    var showSortMenu by remember { mutableStateOf(false) }
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .padding(start = 16.dp, top = 24.dp, end = 16.dp, bottom = 24.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = "Hello, $userName",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = "What will you notice today?",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = "Hello, $userName",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "What will you notice today?",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Sorted by: ${selectedSortOption.label}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
+
+        Box {
+            IconButton(onClick = { showSortMenu = true }) {
+                Icon(
+                    imageVector = Icons.Default.FilterList,
+                    contentDescription = "Sort entries"
+                )
+            }
+
+            DropdownMenu(
+                expanded = showSortMenu,
+                onDismissRequest = { showSortMenu = false }
+            ) {
+                EntrySortOption.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.label) },
+                        onClick = {
+                            onSortOptionChange(option)
+                            showSortMenu = false
+                        }
+                    )
+                }
+            }
+        }
     }
 }

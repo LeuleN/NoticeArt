@@ -1,8 +1,10 @@
 package com.example.userflowdemo.ui
 
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -15,7 +17,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.outlined.Colorize
-import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -24,10 +35,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
-import android.content.Context
 import androidx.core.content.FileProvider
-import androidx.activity.result.PickVisualMediaRequest
+import coil.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 private fun createImageUri(context: Context): Uri {
@@ -46,6 +58,32 @@ private fun createImageUri(context: Context): Uri {
     )
 }
 
+private suspend fun copyPickedImageToAppStorage(
+    context: Context,
+    sourceUri: Uri
+): String? = withContext(Dispatchers.IO) {
+    try {
+        val picturesDir = context.getExternalFilesDir("Pictures")
+            ?: return@withContext null
+
+        val destinationFile = File(
+            picturesDir,
+            "picked_${System.currentTimeMillis()}.jpg"
+        )
+
+        context.contentResolver.openInputStream(sourceUri)?.use { input ->
+            destinationFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        } ?: return@withContext null
+
+        destinationFile.toURI()
+        Uri.fromFile(destinationFile).toString()
+    } catch (e: Exception) {
+        null
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageMediaScreen(
@@ -56,13 +94,24 @@ fun ImageMediaScreen(
 ) {
     var imageUri by rememberSaveable { mutableStateOf(initialImageUri) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var showImageSourceDialog by rememberSaveable { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var isProcessingImage by remember { mutableStateOf(false) }
+
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let {
-            imageUri = it.toString()
+    ) { pickedUri: Uri? ->
+        if (pickedUri != null) {
+            scope.launch {
+                isProcessingImage = true
+                val localUri = copyPickedImageToAppStorage(context, pickedUri)
+                if (localUri != null) {
+                    imageUri = localUri
+                }
+                isProcessingImage = false
+            }
         }
     }
 
@@ -75,7 +124,9 @@ fun ImageMediaScreen(
     }
 
     val handleBack = {
-        onBack()
+        if (!isProcessingImage) {
+            onBack()
+        }
     }
 
     BackHandler(onBack = handleBack)
@@ -117,8 +168,14 @@ fun ImageMediaScreen(
             TopAppBar(
                 title = { Text("Image Media") },
                 navigationIcon = {
-                    IconButton(onClick = handleBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    IconButton(
+                        onClick = handleBack,
+                        enabled = !isProcessingImage
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 }
             )
@@ -139,15 +196,26 @@ fun ImageMediaScreen(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                if (imageUri != null) {
-                    Image(
-                        painter = rememberAsyncImagePainter(imageUri),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Text("No image selected", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                when {
+                    isProcessingImage -> {
+                        CircularProgressIndicator()
+                    }
+
+                    imageUri != null -> {
+                        Image(
+                            painter = rememberAsyncImagePainter(imageUri),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    else -> {
+                        Text(
+                            "No image selected",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -162,6 +230,7 @@ fun ImageMediaScreen(
             ) {
                 IconButton(
                     onClick = { showImageSourceDialog = true },
+                    enabled = !isProcessingImage,
                     modifier = Modifier
                         .size(56.dp)
                         .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
@@ -175,16 +244,28 @@ fun ImageMediaScreen(
 
                 IconButton(
                     onClick = { imageUri?.let { onColorCapture(it) } },
-                    enabled = imageUri != null,
+                    enabled = imageUri != null && !isProcessingImage,
                     modifier = Modifier
                         .size(56.dp)
-                        .border(1.dp, if (imageUri != null) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                        .border(
+                            1.dp,
+                            if (imageUri != null && !isProcessingImage) {
+                                MaterialTheme.colorScheme.outline
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant
+                            },
+                            CircleShape
+                        )
                 ) {
                     Icon(
-                        Icons.Outlined.Colorize, 
-                        contentDescription = "Color Picker", 
+                        Icons.Outlined.Colorize,
+                        contentDescription = "Color Picker",
                         modifier = Modifier.size(32.dp),
-                        tint = if (imageUri != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        tint = if (imageUri != null && !isProcessingImage) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        }
                     )
                 }
 
@@ -192,19 +273,27 @@ fun ImageMediaScreen(
                     onClick = {
                         imageUri?.let { onConfirm(it) }
                     },
-                    enabled = imageUri != null,
+                    enabled = imageUri != null && !isProcessingImage,
                     modifier = Modifier
                         .size(56.dp)
                         .background(
-                            if (imageUri != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            if (imageUri != null && !isProcessingImage) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            },
                             CircleShape
                         )
                 ) {
                     Icon(
-                        Icons.Default.Check, 
-                        contentDescription = "Confirm", 
+                        Icons.Default.Check,
+                        contentDescription = "Confirm",
                         modifier = Modifier.size(32.dp),
-                        tint = if (imageUri != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (imageUri != null && !isProcessingImage) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
                 }
             }

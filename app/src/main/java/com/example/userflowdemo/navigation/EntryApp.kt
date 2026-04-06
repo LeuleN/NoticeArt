@@ -35,11 +35,11 @@ fun EntryApp(
 ) {
     val context = LocalContext.current
     val preferenceManager = remember { PreferenceManager(context) }
-    
-    var currentScreen by rememberSaveable { 
-        mutableStateOf(if (preferenceManager.hasOnboarded()) "home" else "welcome") 
+
+    var currentScreen by rememberSaveable {
+        mutableStateOf(if (preferenceManager.hasOnboarded()) "home" else "welcome")
     }
-    
+
     var userName by remember { mutableStateOf(preferenceManager.getUserName()) }
     var selectedEntry by remember { mutableStateOf<Entry?>(null) }
     var isEditing by rememberSaveable { mutableStateOf(false) }
@@ -52,8 +52,8 @@ fun EntryApp(
 
     val entries by viewModel.entries.collectAsState()
     val draft by viewModel.draft.collectAsState()
+    val sortOption by viewModel.sortOption.collectAsState()
 
-    // Handle Undo for deleted entries
     LaunchedEffect(recentlyDeletedEntry) {
         recentlyDeletedEntry?.let { entry ->
             val result = snackbarHostState.showSnackbar(
@@ -68,7 +68,6 @@ fun EntryApp(
         }
     }
 
-    // Handle Undo for discarded drafts
     LaunchedEffect(recentlyDiscardedDraft) {
         recentlyDiscardedDraft?.let { entry ->
             val result = snackbarHostState.showSnackbar(
@@ -107,11 +106,13 @@ fun EntryApp(
                 }
             )
         }
+
         "home" -> {
             HomeScreen(
                 userName = userName,
                 entries = entries,
                 draft = draft,
+                sortOption = sortOption,
                 snackbarHostState = snackbarHostState,
                 onAddClick = {
                     isEditing = false
@@ -127,9 +128,11 @@ fun EntryApp(
                 onEntryClick = { entry ->
                     selectedEntry = entry
                     currentScreen = "detail"
-                }
+                },
+                onSortOptionChange = viewModel::setSortOption
             )
         }
+
         "newEntry" -> {
             NewEntryScreen(
                 draft = draft,
@@ -183,6 +186,7 @@ fun EntryApp(
                 }
             )
         }
+
         "recordAudio" -> {
             RecordAudioScreen(
                 onConfirm = { uri ->
@@ -194,6 +198,7 @@ fun EntryApp(
                 }
             )
         }
+
         "imageMedia" -> {
             val mediaItem = editingMediaIndex?.let { index ->
                 if (index >= 0) draft?.media?.getOrNull(index) else null
@@ -201,7 +206,11 @@ fun EntryApp(
             ImageMediaScreen(
                 initialImageUri = mediaItem?.imageUri,
                 onConfirm = { uri ->
-                    viewModel.addOrUpdateMediaItem(uri, mediaItem?.colors ?: emptyList(), editingMediaIndex?.takeIf { it >= 0 })
+                    viewModel.addOrUpdateMediaItem(
+                        uri,
+                        mediaItem?.colors ?: emptyList(),
+                        editingMediaIndex?.takeIf { it >= 0 }
+                    )
                     editingMediaIndex = null
                     currentScreen = "newEntry"
                 },
@@ -215,6 +224,7 @@ fun EntryApp(
                 }
             )
         }
+
         "colorCapture" -> {
             val mediaItem = editingMediaIndex?.let { index ->
                 if (index >= 0) draft?.media?.getOrNull(index) else null
@@ -224,7 +234,11 @@ fun EntryApp(
                     imageUri = uri,
                     initialColors = mediaItem?.colors ?: emptyList(),
                     onConfirm = { colors ->
-                        viewModel.addOrUpdateMediaItem(uri, colors, editingMediaIndex?.takeIf { it >= 0 })
+                        viewModel.addOrUpdateMediaItem(
+                            uri,
+                            colors,
+                            editingMediaIndex?.takeIf { it >= 0 }
+                        )
                         colorCaptureUri = null
                         editingMediaIndex = null
                         currentScreen = "newEntry"
@@ -236,6 +250,7 @@ fun EntryApp(
                 )
             }
         }
+
         "detail" -> {
             selectedEntry?.let { entry ->
                 val latestEntry = entries.find { it.id == entry.id } ?: entry
@@ -252,6 +267,9 @@ fun EntryApp(
                         isEditing = true
                         viewModel.startEditing(latestEntry)
                         currentScreen = "newEntry"
+                    },
+                    onToggleFavorite = {
+                        viewModel.toggleFavorite(latestEntry)
                     }
                 )
             }

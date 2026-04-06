@@ -14,7 +14,9 @@ data class Entry(
     val id: Long = 0,
     val title: String,
     val timestamp: Long = System.currentTimeMillis(),
+    val createdAt: Long = System.currentTimeMillis(),
     val isDraft: Boolean = false,
+    val isFavorite: Boolean = false,
     val media: List<MediaItem> = emptyList(),
     val audioUris: List<String> = emptyList(),
     val observation: String? = null

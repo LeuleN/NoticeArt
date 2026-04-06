@@ -6,19 +6,41 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+
+
 class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = EntryDatabase.getDatabase(application)
     private val repository = EntryRepository(database.entryDao())
 
+    private val _sortOption = MutableStateFlow(EntrySortOption.LAST_MODIFIED)
+    val sortOption: StateFlow<EntrySortOption> = _sortOption.asStateFlow()
+
     val entries: StateFlow<List<Entry>> =
-        repository.allEntries
-            .map { list -> list.filter { !it.isDraft } }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList()
-            )
+        combine(repository.allEntries, _sortOption) { list, sortOption ->
+            val nonDraftEntries = list.filter { !it.isDraft }
+
+            when (sortOption) {
+                EntrySortOption.LAST_MODIFIED ->
+                    nonDraftEntries.sortedByDescending { it.timestamp }
+
+                EntrySortOption.TITLE_ASC ->
+                    nonDraftEntries.sortedBy { it.title.trim().lowercase() }
+
+                EntrySortOption.TITLE_DESC ->
+                    nonDraftEntries.sortedByDescending { it.title.trim().lowercase() }
+
+                EntrySortOption.FAVORITES_FIRST ->
+                    nonDraftEntries.sortedWith(
+                        compareByDescending<Entry> { it.isFavorite }
+                            .thenByDescending { it.timestamp }
+                    )
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     private val _draft = MutableStateFlow<Entry?>(null)
     val draft: StateFlow<Entry?> = _draft
@@ -30,6 +52,10 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadDraft()
+    }
+
+    fun setSortOption(option: EntrySortOption) {
+        _sortOption.value = option
     }
 
     private fun loadDraft() {
@@ -96,13 +122,13 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             _draft.value?.let { draft ->
                 val updatedMedia = draft.media.toMutableList()
                 val newItem = MediaItem(imageUri = uri, colors = colors)
-                
+
                 if (index != null && index in updatedMedia.indices) {
                     updatedMedia[index] = newItem
                 } else {
                     updatedMedia.add(newItem)
                 }
-                
+
                 val updated = draft.copy(media = updatedMedia)
                 repository.update(updated)
                 _draft.value = updated
@@ -189,6 +215,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 editingOriginalId = null
                 originalEntrySnapshot = null
             }
+        }
+    }
+
+    fun toggleFavorite(entry: Entry) {
+        viewModelScope.launch {
+            repository.update(
+                entry.copy(isFavorite = !entry.isFavorite)
+            )
         }
     }
 
