@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.DisposableEffect
 
@@ -134,11 +135,15 @@ fun EntryDetailScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    val prioritizedTextures = remember(mediaItem.textures) {
+                        mediaItem.textures.sortedBy { it.name.startsWith("Auto Texture") }
+                    }
+
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(mediaItem.textures) { texture ->
+                        items(prioritizedTextures) { texture ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Box(
                                     modifier = Modifier
@@ -257,6 +262,9 @@ fun EntryDetailScreen(
                                 )
 
                                 if (mediaItem.textures.isNotEmpty()) {
+                                    val prioritizedTextures = remember(mediaItem.textures) {
+                                        mediaItem.textures.sortedBy { it.name.startsWith("Auto Texture") }
+                                    }
                                     Column(
                                         modifier = Modifier
                                             .align(Alignment.BottomCenter)
@@ -264,18 +272,13 @@ fun EntryDetailScreen(
                                             .fillMaxHeight(0.25f)
                                             .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(2.dp)
-                                                .background(Color.Black)
-                                        )
+                                        HorizontalDivider(modifier = Modifier.fillMaxWidth(), thickness = 2.dp, color = Color.Black)
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .weight(1f)
                                         ) {
-                                            val texturesToShow = mediaItem.textures.take(3)
+                                            val texturesToShow = prioritizedTextures.take(3)
                                             texturesToShow.forEachIndexed { index, texture ->
                                                 Box(
                                                     modifier = Modifier
@@ -310,12 +313,7 @@ fun EntryDetailScreen(
                                             .fillMaxHeight(0.25f)
                                             .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(2.dp)
-                                                .background(Color.Black)
-                                        )
+                                        HorizontalDivider(modifier = Modifier.fillMaxWidth(), thickness = 2.dp, color = Color.Black)
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
