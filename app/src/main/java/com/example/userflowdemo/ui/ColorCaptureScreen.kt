@@ -57,6 +57,11 @@ fun ColorCaptureScreen(
     val aiState by viewModel.aiState.collectAsState()
     val colorCount by viewModel.colorCount.collectAsState()
 
+    // Fix: Reset AI state when the image changes to prevent cross-image leaks
+    LaunchedEffect(imageUri) {
+        viewModel.resetAiState()
+    }
+
     val bitmap = remember(imageUri) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

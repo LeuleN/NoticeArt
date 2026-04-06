@@ -47,6 +47,11 @@ fun TextureCaptureScreen(
 
     var textureToRename by remember { mutableStateOf<Texture?>(null) }
 
+    // Fix: Reset detection state when the image changes to prevent cross-image leaks
+    LaunchedEffect(imageUri) {
+        viewModel.resetTextureState()
+    }
+
     // Ordering logic: Custom-named textures FIRST, then default textures
     val sortedTextures = remember(textures) {
         val (custom, default) = textures.partition { it.isCustomName }
