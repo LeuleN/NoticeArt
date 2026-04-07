@@ -3,9 +3,9 @@ package com.example.userflowdemo.utils
 import android.graphics.Bitmap
 import androidx.palette.graphics.Palette
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 class AiColorService {
 
@@ -14,7 +14,7 @@ class AiColorService {
      * This replaces the Gemini-based suggestion with a more reliable local extraction.
      */
     suspend fun suggestColors(bitmap: Bitmap, colorCount: Int = 6): List<Int> = withContext(Dispatchers.Default) {
-        suspendCoroutine { continuation ->
+        suspendCancellableCoroutine { continuation ->
             try {
                 // Generate the palette.
                 // .maximumColorCount(32) tells the engine to look at 32 color clusters
