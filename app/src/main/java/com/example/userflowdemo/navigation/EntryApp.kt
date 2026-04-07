@@ -38,7 +38,6 @@ fun EntryApp(
     var textureCaptureUri by rememberSaveable { mutableStateOf<String?>(null) }
     
     var textureToEdit by remember { mutableStateOf<Texture?>(null) }
-
     val snackbarHostState = remember { SnackbarHostState() }
     var recentlyDeletedEntry by remember { mutableStateOf<Entry?>(null) }
     var recentlyDiscardedDraft by remember { mutableStateOf<Entry?>(null) }
@@ -56,7 +55,7 @@ fun EntryApp(
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.insertEntry(entry)
             }
-            recentlyDeletedEntry = null
+            recentlyDeletedEntry = null // Required for Compose state / recomposition
         }
     }
 
@@ -69,9 +68,9 @@ fun EntryApp(
             )
             if (result == SnackbarResult.ActionPerformed) {
                 viewModel.restoreDraft(entry)
-                currentScreen = "newEntry"
+                currentScreen = "newEntry" // Required for Compose state / recomposition
             }
-            recentlyDiscardedDraft = null
+            recentlyDiscardedDraft = null // Required for Compose state / recomposition
         }
     }
 
@@ -105,15 +104,15 @@ fun EntryApp(
                 draft = draft,
                 snackbarHostState = snackbarHostState,
                 onAddClick = {
-                    isEditing = false
-                    selectedEntry = null
+                    isEditing = false // Required for Compose state / recomposition
+                    selectedEntry = null // Required for Compose state / recomposition
                     viewModel.createDraft()
-                    currentScreen = "newEntry"
+                    currentScreen = "newEntry" // Required for Compose state / recomposition
                 },
                 onDraftClick = {
-                    isEditing = false
-                    selectedEntry = null
-                    currentScreen = "newEntry"
+                    isEditing = false // Required for Compose state / recomposition
+                    selectedEntry = null // Required for Compose state / recomposition
+                    currentScreen = "newEntry" // Required for Compose state / recomposition
                 },
                 onEntryClick = { entry ->
                     selectedEntry = entry
@@ -131,7 +130,7 @@ fun EntryApp(
                     context.startActivity(Intent.createChooser(shareIntent, "Share Entry"))
                 },
                 onDeleteEntry = { entry ->
-                    recentlyDeletedEntry = entry
+                    recentlyDeletedEntry = entry // Required for Compose state / recomposition
                     viewModel.deleteEntry(entry)
                 }
             )
