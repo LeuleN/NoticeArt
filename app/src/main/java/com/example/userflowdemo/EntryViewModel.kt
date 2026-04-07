@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.core.net.toUri
 
 sealed class AiState {
     object Idle : AiState()
@@ -100,7 +101,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             val count = _colorCount.value
             _aiState.value = AiState.Loading
             try {
-                val uri = Uri.parse(uriString)
+                val uri = uriString.toUri()
                 val bitmap = loadBitmapFromUri(context, uri)
                 
                 if (bitmap != null) {
@@ -120,7 +121,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             val count = _textureCount.value
             _textureState.value = TextureDetectionState.Loading
             try {
-                val uri = Uri.parse(uriString)
+                val uri = uriString.toUri()
                 val bitmap = loadBitmapFromUri(context, uri)
                 
                 if (bitmap != null) {
