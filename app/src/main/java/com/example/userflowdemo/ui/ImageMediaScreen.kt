@@ -193,16 +193,24 @@ fun ImageMediaScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val isExistingImage = initialImageUri != null
+                
                 IconButton(
                     onClick = { showImageSourceDialog = true },
+                    enabled = !isExistingImage,
                     modifier = Modifier
                         .size(56.dp)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .border(
+                            1.dp, 
+                            if (!isExistingImage) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant, 
+                            CircleShape
+                        )
                 ) {
                     Icon(
                         Icons.Filled.Image,
-                        contentDescription = "Add or change image",
-                        modifier = Modifier.size(32.dp)
+                        contentDescription = if (isExistingImage) "Image cannot be changed" else "Add image",
+                        modifier = Modifier.size(32.dp),
+                        tint = if (!isExistingImage) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                     )
                 }
 

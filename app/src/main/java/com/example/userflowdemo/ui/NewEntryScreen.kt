@@ -19,6 +19,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Colorize
+import androidx.compose.material.icons.outlined.Crop
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,6 +60,8 @@ fun NewEntryScreen(
     onAutoSave: () -> Unit,
     onNavigateToImageMedia: (Int?) -> Unit,
     onRemoveMedia: (Int) -> Unit,
+    onColorCapture: (String) -> Unit,
+    onTextureCapture: (String) -> Unit,
     onAddAudioFromFiles: () -> Unit,
     onRecordAudioNow: () -> Unit,
     onRemoveAudio: (String) -> Unit
@@ -69,8 +75,6 @@ fun NewEntryScreen(
     var showAudioOptionsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     val audioSheetState = rememberModalBottomSheetState()
-
-    var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
 
     val mediaItems = currentEntry?.media ?: emptyList()
     val audioUris = currentEntry?.audioUris ?: emptyList()
@@ -340,10 +344,6 @@ fun NewEntryScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { pendingDeleteIndex = null }
         ) {
             val mainScrollState = rememberScrollState()
             Box(modifier = Modifier.weight(1f)) {
@@ -450,10 +450,6 @@ fun NewEntryScreen(
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxSize()
-                                                        .clickable { 
-                                                            pendingDeleteIndex = null
-                                                            onNavigateToImageMedia(index) 
-                                                        }
                                                 ) {
                                                     Image(
                                                         painter = rememberAsyncImagePainter(mediaItem.imageUri),
@@ -553,50 +549,67 @@ fun NewEntryScreen(
                                                     }
                                                 }
 
-                                                // Remove Button
+                                                // Menu Button
+                                                var showMenu by remember { mutableStateOf(false) }
                                                 Surface(
                                                     modifier = Modifier
                                                         .align(Alignment.TopEnd)
                                                         .padding(8.dp)
-                                                        .size(28.dp),
+                                                        .size(32.dp),
                                                     shape = CircleShape,
-                                                    color = Color.White.copy(alpha = 0.8f),
+                                                    color = Color.White.copy(alpha = 0.9f),
                                                     shadowElevation = 4.dp
                                                 ) {
-                                                    IconButton(
-                                                        onClick = { pendingDeleteIndex = index }
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Close,
-                                                            contentDescription = "Remove Media",
-                                                            modifier = Modifier.size(18.dp),
-                                                            tint = Color.Black
-                                                        )
-                                                    }
-                                                }
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        IconButton(onClick = { showMenu = true }) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.MoreVert,
+                                                                contentDescription = "Media Actions",
+                                                                modifier = Modifier.size(20.dp),
+                                                                tint = Color.Black
+                                                            )
+                                                        }
 
-                                                // Inline Delete Confirmation
-                                                if (pendingDeleteIndex == index) {
-                                                    Surface(
-                                                        modifier = Modifier
-                                                            .align(Alignment.TopEnd)
-                                                            .padding(top = 40.dp, end = 8.dp)
-                                                            .clickable { 
-                                                                pendingDeleteIndex = null
-                                                                onRemoveMedia(index) 
-                                                            },
-                                                        shape = RoundedCornerShape(20.dp),
-                                                        color = Color.White,
-                                                        shadowElevation = 6.dp,
-                                                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
-                                                    ) {
-                                                        Text(
-                                                            text = "Delete",
-                                                            color = Color.Red,
-                                                            fontWeight = FontWeight.Bold,
-                                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                                                            style = MaterialTheme.typography.labelLarge
-                                                        )
+                                                        DropdownMenu(
+                                                            expanded = showMenu,
+                                                            onDismissRequest = { showMenu = false }
+                                                        ) {
+                                                            DropdownMenuItem(
+                                                                text = { Text("Extract Colors") },
+                                                                onClick = {
+                                                                    showMenu = false
+                                                                    mediaItem.imageUri?.let { onColorCapture(it) }
+                                                                },
+                                                                leadingIcon = {
+                                                                    Icon(Icons.Outlined.Colorize, contentDescription = null)
+                                                                }
+                                                            )
+                                                            DropdownMenuItem(
+                                                                text = { Text("Extract Textures") },
+                                                                onClick = {
+                                                                    showMenu = false
+                                                                    mediaItem.imageUri?.let { onTextureCapture(it) }
+                                                                },
+                                                                leadingIcon = {
+                                                                    Icon(Icons.Outlined.Crop, contentDescription = null)
+                                                                }
+                                                            )
+                                                            HorizontalDivider()
+                                                            DropdownMenuItem(
+                                                                text = { Text("Remove", color = MaterialTheme.colorScheme.error) },
+                                                                onClick = {
+                                                                    showMenu = false
+                                                                    onRemoveMedia(index)
+                                                                },
+                                                                leadingIcon = {
+                                                                    Icon(
+                                                                        Icons.Outlined.Delete,
+                                                                        contentDescription = null,
+                                                                        tint = MaterialTheme.colorScheme.error
+                                                                    )
+                                                                }
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }

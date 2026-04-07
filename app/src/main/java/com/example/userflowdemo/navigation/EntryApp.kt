@@ -36,6 +36,7 @@ fun EntryApp(
     var currentMediaId by rememberSaveable { mutableStateOf<String?>(null) }
     var colorCaptureUri by rememberSaveable { mutableStateOf<String?>(null) }
     var textureCaptureUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var captureBackDestination by rememberSaveable { mutableStateOf("newEntry") }
     
     var textureToEdit by remember { mutableStateOf<Texture?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -172,6 +173,22 @@ fun EntryApp(
                     currentScreen = "imageMedia"
                 },
                 onRemoveMedia = { viewModel.removeMediaItem(it) },
+                onColorCapture = { uri ->
+                    colorCaptureUri = uri
+                    val mediaItem = draft?.media?.find { it.imageUri == uri }
+                    currentMediaId = mediaItem?.id
+                    editingMediaIndex = draft?.media?.indexOf(mediaItem)
+                    captureBackDestination = "newEntry"
+                    currentScreen = "colorCapture"
+                },
+                onTextureCapture = { uri ->
+                    textureCaptureUri = uri
+                    val mediaItem = draft?.media?.find { it.imageUri == uri }
+                    currentMediaId = mediaItem?.id
+                    editingMediaIndex = draft?.media?.indexOf(mediaItem)
+                    captureBackDestination = "newEntry"
+                    currentScreen = "textureCapture"
+                },
                 onAddAudioFromFiles = { audioPicker.launch(arrayOf("audio/*")) },
                 onRecordAudioNow = { currentScreen = "recordAudio" },
                 onRemoveAudio = { viewModel.removeAudioUri(it) }
@@ -209,6 +226,7 @@ fun EntryApp(
                         currentMediaId = newId
                         viewModel.addOrUpdateMediaItem(uri, emptyList(), emptyList(), mediaId = newId)
                     }
+                    captureBackDestination = "imageMedia"
                     currentScreen = "colorCapture"
                 },
                 onTextureCapture = { uri ->
@@ -218,6 +236,7 @@ fun EntryApp(
                         currentMediaId = newId
                         viewModel.addOrUpdateMediaItem(uri, emptyList(), emptyList(), mediaId = newId)
                     }
+                    captureBackDestination = "imageMedia"
                     currentScreen = "textureCapture"
                 },
                 onBack = {
@@ -241,13 +260,15 @@ fun EntryApp(
                     onConfirm = { colors ->
                         viewModel.addOrUpdateMediaItem(uri, colors, mediaItem?.textures ?: emptyList(), editingMediaIndex?.takeIf { it >= 0 }, currentMediaId)
                         colorCaptureUri = null
-                        editingMediaIndex = null
-                        currentMediaId = null
-                        currentScreen = "newEntry"
+                        if (captureBackDestination == "newEntry") {
+                            editingMediaIndex = null
+                            currentMediaId = null
+                        }
+                        currentScreen = captureBackDestination
                     },
                     onBack = {
                         colorCaptureUri = null
-                        currentScreen = "imageMedia"
+                        currentScreen = captureBackDestination
                     }
                 )
             }
@@ -273,11 +294,11 @@ fun EntryApp(
                     },
                     onConfirm = {
                         textureCaptureUri = null
-                        currentScreen = "imageMedia"
+                        currentScreen = captureBackDestination
                     },
                     onBack = {
                         textureCaptureUri = null
-                        currentScreen = "imageMedia"
+                        currentScreen = captureBackDestination
                     }
                 )
             }

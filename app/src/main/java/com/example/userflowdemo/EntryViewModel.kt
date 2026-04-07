@@ -368,6 +368,25 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun removeImage(mediaId: String) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                val updatedMedia = draft.media.filter { it.id != mediaId }
+                val updated = draft.copy(media = updatedMedia)
+                _draft.value = updated
+                repository.update(updated)
+            }
+        }
+    }
+
+    fun openColorCapture(mediaId: String) {
+        // Navigation handled in EntryApp
+    }
+
+    fun openTextureCapture(mediaId: String) {
+        // Navigation handled in EntryApp
+    }
+
     fun addAudioUri(uri: String) {
         viewModelScope.launch {
             _draft.value?.let { draft ->

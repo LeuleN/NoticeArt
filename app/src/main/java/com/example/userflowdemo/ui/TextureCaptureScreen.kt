@@ -336,14 +336,16 @@ fun TextureItem(
                         },
                         leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
                     )
-                    DropdownMenuItem(
-                        text = { Text("Edit Crop") },
-                        onClick = {
-                            showMenu = false
-                            onEditCrop()
-                        },
-                        leadingIcon = { Icon(Icons.Default.Crop, contentDescription = null) }
-                    )
+                    if (!texture.name.startsWith("Auto Texture")) {
+                        DropdownMenuItem(
+                            text = { Text("Edit Crop") },
+                            onClick = {
+                                showMenu = false
+                                onEditCrop()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Crop, contentDescription = null) }
+                        )
+                    }
                     HorizontalDivider()
                     DropdownMenuItem(
                         text = { Text("Remove", color = MaterialTheme.colorScheme.error) },
