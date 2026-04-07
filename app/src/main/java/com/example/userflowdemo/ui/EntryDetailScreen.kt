@@ -48,7 +48,6 @@ import com.example.userflowdemo.MediaItem
 import com.example.userflowdemo.components.DraggableScrollbar
 import android.media.MediaPlayer
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon

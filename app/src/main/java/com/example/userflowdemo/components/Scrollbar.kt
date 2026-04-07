@@ -1,5 +1,6 @@
 package com.example.userflowdemo.components
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.ui.layout.onSizeChanged
 
 /**
  * A draggable scrollbar for standard ScrollState.
@@ -33,23 +35,33 @@ fun DraggableScrollbar(
 
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
+    var containerHeightPx by remember { mutableStateOf(0f) }
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxHeight()
             .width(32.dp) // Touch area
+            .onSizeChanged { size ->
+                containerHeightPx = size.height.toFloat()
+            }
     ) {
-        val visibleHeightPx = with(density) { maxHeight.toPx() }
+        if (containerHeightPx <= 0f) return@Box
+
         val thumbHeightPx = with(density) { thumbHeight.toPx() }
-        val moveRangePx = visibleHeightPx - thumbHeightPx
+        val moveRangePx = (containerHeightPx - thumbHeightPx).coerceAtLeast(0f)
 
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset {
                     val maxValue = scrollState.maxValue
-                    val scrollPercent = if (maxValue > 0) scrollState.value.toFloat() / maxValue else 0f
-                    IntOffset(0, (scrollPercent * moveRangePx).roundToInt())
+                    val scrollPercent =
+                        if (maxValue > 0) scrollState.value.toFloat() / maxValue else 0f
+
+                    IntOffset(
+                        0,
+                        (scrollPercent * moveRangePx).roundToInt()
+                    )
                 }
                 .size(width = 4.dp, height = thumbHeight)
                 .background(
@@ -59,11 +71,13 @@ fun DraggableScrollbar(
                 .draggable(
                     state = rememberDraggableState { delta ->
                         val maxValue = scrollState.maxValue
-                        if (maxValue > 0 && moveRangePx > 0) {
+                        if (maxValue > 0 && moveRangePx > 0f) {
                             val currentPercent = scrollState.value.toFloat() / maxValue
                             val currentOffsetPx = currentPercent * moveRangePx
-                            val newOffsetPx = (currentOffsetPx + delta).coerceIn(0f, moveRangePx)
+                            val newOffsetPx =
+                                (currentOffsetPx + delta).coerceIn(0f, moveRangePx)
                             val newPercent = newOffsetPx / moveRangePx
+
                             coroutineScope.launch {
                                 scrollState.scrollTo((newPercent * maxValue).roundToInt())
                             }
@@ -94,13 +108,20 @@ fun GridScrollbar(
 
     if (!showScrollbar) return
 
-    BoxWithConstraints(
+    val density = LocalDensity.current
+    var containerHeightPx by remember { mutableStateOf(0f) }
+
+    Box(
         modifier = modifier
             .fillMaxHeight()
             .width(4.dp)
+            .onSizeChanged { size ->
+                containerHeightPx = size.height.toFloat()
+            }
     ) {
-        val visibleHeightPx = with(LocalDensity.current) { maxHeight.toPx() }
-        val moveRangePx = visibleHeightPx - with(LocalDensity.current) { thumbHeight.toPx() }
+        if (containerHeightPx <= 0f) return@Box
+
+        val moveRangePx = containerHeightPx - with(density) { thumbHeight.toPx() }
 
         Box(
             modifier = Modifier
@@ -111,10 +132,16 @@ fun GridScrollbar(
 
                     val firstVisibleItem = gridState.firstVisibleItemIndex
                     val firstVisibleOffset = gridState.firstVisibleItemScrollOffset.toFloat()
-                    val averageItemHeight = layoutInfo.visibleItemsInfo.firstOrNull()?.size?.height?.toFloat() ?: 1f
-                    
-                    val scrollPercent = (firstVisibleItem + (firstVisibleOffset / averageItemHeight)) / totalItemsCount.toFloat()
-                    IntOffset(0, (scrollPercent.coerceIn(0f, 1f) * moveRangePx).roundToInt())
+                    val averageItemHeight =
+                        layoutInfo.visibleItemsInfo.firstOrNull()?.size?.height?.toFloat() ?: 1f
+
+                    val scrollPercent =
+                        (firstVisibleItem + (firstVisibleOffset / averageItemHeight)) / totalItemsCount.toFloat()
+
+                    IntOffset(
+                        0,
+                        (scrollPercent.coerceIn(0f, 1f) * moveRangePx).roundToInt()
+                    )
                 }
                 .size(width = 4.dp, height = thumbHeight)
                 .background(

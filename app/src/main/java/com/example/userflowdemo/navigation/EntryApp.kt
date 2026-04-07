@@ -220,13 +220,16 @@ fun EntryApp(
                 initialImageUri = mediaItem?.imageUri,
                 initialColors = mediaItem?.colors ?: emptyList(),
                 initialTextures = mediaItem?.textures ?: emptyList(),
-                onConfirm = { uri ->
+                onConfirm = { uri, colors, textures ->
                     viewModel.addOrUpdateMediaItem(
                         uri,
-                        mediaItem?.colors ?: emptyList(),
-                        editingMediaIndex?.takeIf { it >= 0 }
+                        colors,
+                        textures,
+                        editingMediaIndex?.takeIf { it >= 0 },
+                        currentMediaId
                     )
                     editingMediaIndex = null
+                    currentMediaId = null
                     currentScreen = "newEntry"
                 },
                 onColorCapture = { uri ->
