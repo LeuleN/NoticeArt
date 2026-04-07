@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -15,19 +16,26 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +52,12 @@ import com.example.userflowdemo.components.AddCard
 import com.example.userflowdemo.components.DraftCard
 import com.example.userflowdemo.components.EntryCard
 import com.example.userflowdemo.components.GridScrollbar
+import androidx.compose.foundation.clickable
 
+/**
+ * Modern card-based grid layout for the Home Screen.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     userName: String,
@@ -55,10 +68,16 @@ fun HomeScreen(
     onAddClick: () -> Unit,
     onDraftClick: () -> Unit,
     onEntryClick: (Entry) -> Unit,
+    onExportPdf: (Entry) -> Unit,
+    onShareEntry: (Entry) -> Unit,
+    onDeleteEntry: (Entry) -> Unit,
     onSortOptionChange: (EntrySortOption) -> Unit
 ) {
     var showDraftDialog by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
+
+    var selectedEntryForMenu by remember { mutableStateOf<Entry?>(null) }
+    val sheetState = rememberModalBottomSheetState()
 
     if (showDraftDialog) {
         AlertDialog(
@@ -138,7 +157,8 @@ fun HomeScreen(
                     items(entries) { entry ->
                         EntryCard(
                             entry = entry,
-                            onClick = { onEntryClick(entry) }
+                            onClick = { onEntryClick(entry) },
+                            onLongClick = { selectedEntryForMenu = entry }
                         )
                     }
                 }
@@ -150,6 +170,52 @@ fun HomeScreen(
                         .padding(end = 4.dp, top = 8.dp, bottom = 8.dp),
                     thumbHeight = 60.dp
                 )
+            }
+        }
+    }
+
+    if (selectedEntryForMenu != null) {
+        ModalBottomSheet(
+            onDismissRequest = { selectedEntryForMenu = null },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+            ) {
+                Text(
+                    text = selectedEntryForMenu?.title ?: "",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(16.dp),
+                    fontWeight = FontWeight.Bold
+                )
+
+                ListItem(
+                    headlineContent = { Text("Export as PDF") },
+                    leadingContent = { Icon(Icons.Default.PictureAsPdf, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        selectedEntryForMenu?.let { onExportPdf(it) }
+                        selectedEntryForMenu = null
+                    }
+                )
+                ListItem(
+                    headlineContent = { Text("Share Text") },
+                    leadingContent = { Icon(Icons.Default.Share, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        selectedEntryForMenu?.let { onShareEntry(it) }
+                        selectedEntryForMenu = null
+                    }
+                )
+                ListItem(
+                    headlineContent = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                    leadingContent = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                    modifier = Modifier.clickable {
+                        selectedEntryForMenu?.let { onDeleteEntry(it) }
+                        selectedEntryForMenu = null
+                    }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

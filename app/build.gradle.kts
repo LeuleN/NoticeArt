@@ -1,5 +1,8 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp")
 }
@@ -16,6 +19,19 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Load local.properties to read GEMINI_API_KEY
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(localPropertiesFile.inputStream())
+        }
+        
+        val geminiApiKey: String = localProperties.getProperty("GEMINI_API_KEY")
+            ?: project.findProperty("GEMINI_API_KEY")?.toString()
+            ?: ""
+
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
     buildTypes {
@@ -31,8 +47,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    kotlinOptions {
+        jvmTarget = "11"
+    }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -62,4 +82,11 @@ dependencies {
     implementation("androidx.room:room-ktx:2.7.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation(libs.google.generativeai)
+    
+    // Palette API for local color extraction
+    implementation("androidx.palette:palette-ktx:1.0.0")
+
+    // OpenCV
+    implementation(libs.opencv.android)
 }

@@ -1,7 +1,9 @@
 package com.example.userflowdemo.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,14 +68,17 @@ fun DraftCard(draft: Entry, onDraftClick: () -> Unit) {
     EntryCard(
         entry = draft,
         onClick = onDraftClick,
+        onLongClick = {}, // Drafts probably don't need PDF export yet
         isDraft = true
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun EntryCard(
     entry: Entry,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     isDraft: Boolean = false
 ) {
@@ -83,9 +88,13 @@ fun EntryCard(
             .alpha(if (isDraft) 0.8f else 1f),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        onClick = onClick
     ) {
-        Box {
+        Box(
+            modifier = Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+        ) {
             Column {
                 val firstMedia = entry.media.firstOrNull()
                 val backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)

@@ -17,16 +17,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.outlined.Colorize
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.outlined.Crop
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -37,10 +29,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import coil.compose.rememberAsyncImagePainter
+import com.example.userflowdemo.Texture
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
+import java.util.*
 
 private fun createImageUri(context: Context): Uri {
     val picturesDir = context.getExternalFilesDir("Pictures")
@@ -84,12 +79,36 @@ private suspend fun copyPickedImageToAppStorage(
     }
 }
 
+private fun saveUriToInternalStorage(context: Context, uri: Uri): String? {
+    // If it's already an internal file URI, just return it
+    if (uri.scheme == "file" || (uri.scheme == "content" && uri.authority == "${context.packageName}.provider")) {
+        return uri.toString()
+    }
+
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val mediaDir = File(context.filesDir, "media").apply { mkdirs() }
+        val file = File(mediaDir, "image_${UUID.randomUUID()}.jpg")
+
+        FileOutputStream(file).use { outputStream ->
+            inputStream.copyTo(outputStream)
+        }
+        Uri.fromFile(file).toString()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageMediaScreen(
     initialImageUri: String?,
-    onConfirm: (String) -> Unit,
+    initialColors: List<Int>,
+    initialTextures: List<Texture>,
+    onConfirm: (String, List<Int>, List<Texture>) -> Unit,
     onColorCapture: (String) -> Unit,
+    onTextureCapture: (String) -> Unit,
     onBack: () -> Unit
 ) {
     var imageUri by rememberSaveable { mutableStateOf(initialImageUri) }
@@ -228,17 +247,24 @@ fun ImageMediaScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val isExistingImage = initialImageUri != null
+
                 IconButton(
                     onClick = { showImageSourceDialog = true },
                     enabled = !isProcessingImage,
                     modifier = Modifier
                         .size(56.dp)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        .border(
+                            1.dp,
+                            if (!isExistingImage) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant,
+                            CircleShape
+                        )
                 ) {
                     Icon(
                         Icons.Filled.Image,
-                        contentDescription = "Add or change image",
-                        modifier = Modifier.size(32.dp)
+                        contentDescription = if (isExistingImage) "Image cannot be changed" else "Add image",
+                        modifier = Modifier.size(32.dp),
+                        tint = if (!isExistingImage) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                     )
                 }
 
@@ -270,8 +296,23 @@ fun ImageMediaScreen(
                 }
 
                 IconButton(
+                    onClick = { imageUri?.let { onTextureCapture(it) } },
+                    enabled = imageUri != null,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .border(1.dp, if (imageUri != null) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                ) {
+                    Icon(
+                        Icons.Outlined.Crop,
+                        contentDescription = "Texture Capture",
+                        modifier = Modifier.size(32.dp),
+                        tint = if (imageUri != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    )
+                }
+
+                IconButton(
                     onClick = {
-                        imageUri?.let { onConfirm(it) }
+                        imageUri?.let { onConfirm(it, initialColors, initialTextures) }
                     },
                     enabled = imageUri != null && !isProcessingImage,
                     modifier = Modifier

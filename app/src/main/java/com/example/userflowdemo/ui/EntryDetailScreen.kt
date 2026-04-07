@@ -4,20 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -60,6 +47,15 @@ import com.example.userflowdemo.Entry
 import com.example.userflowdemo.MediaItem
 import com.example.userflowdemo.components.DraggableScrollbar
 import android.media.MediaPlayer
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.DisposableEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +64,8 @@ fun EntryDetailScreen(
     onBack: () -> Unit,
     onDelete: () -> Unit,
     onEdit: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    onExportPdf: (Entry) -> Unit
 ) {
     val formattedTime = java.text.SimpleDateFormat(
         "MMM dd, yyyy hh:mm a",
@@ -138,33 +135,82 @@ fun EntryDetailScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Text(
-                    text = "Extracted Colors",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Start)
-                )
+                if (mediaItem.textures.isNotEmpty()) {
+                    Text(
+                        text = "Captured Textures",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(mediaItem.colors) { colorInt ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(colorInt))
-                                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "#%06X".format(0xFFFFFF and colorInt),
-                                style = MaterialTheme.typography.labelSmall
-                            )
+                    val prioritizedTextures = remember(mediaItem.textures) {
+                        mediaItem.textures.sortedBy { it.name.startsWith("Auto Texture") }
+                    }
+
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(prioritizedTextures) { texture ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .border(
+                                            BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                ) {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(texture.imageUri),
+                                        contentDescription = texture.name,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = texture.name,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (mediaItem.colors.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text(
+                        text = "Extracted Colors",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(mediaItem.colors) { colorInt ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(colorInt))
+                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "#%06X".format(0xFFFFFF and colorInt),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
                         }
                     }
                 }
@@ -248,20 +294,83 @@ fun EntryDetailScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
 
-                                if (mediaItem.colors.isNotEmpty()) {
-                                    Row(
+                                if (mediaItem.textures.isNotEmpty()) {
+                                    val prioritizedTextures = remember(mediaItem.textures) {
+                                        mediaItem.textures.sortedBy { it.name.startsWith("Auto Texture") }
+                                    }
+                                    Column(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(60.dp)
                                             .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .fillMaxHeight(0.25f)
+                                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                                     ) {
-                                        mediaItem.colors.take(3).forEach { colorInt ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight()
-                                                    .background(Color(colorInt))
-                                            )
+                                        HorizontalDivider(modifier = Modifier.fillMaxWidth(), thickness = 2.dp, color = Color.Black)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f)
+                                        ) {
+                                            val texturesToShow = prioritizedTextures.take(3)
+                                            texturesToShow.forEachIndexed { index, texture ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                ) {
+                                                    Image(
+                                                        painter = rememberAsyncImagePainter(texture.imageUri),
+                                                        contentDescription = texture.name,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+
+                                                    if (index != texturesToShow.lastIndex) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .align(Alignment.CenterEnd)
+                                                                .width(2.dp)
+                                                                .fillMaxHeight()
+                                                                .background(Color.Black)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if (mediaItem.colors.isNotEmpty()) {
+                                    Column(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .fillMaxHeight(0.25f)
+                                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+                                    ) {
+                                        HorizontalDivider(modifier = Modifier.fillMaxWidth(), thickness = 2.dp, color = Color.Black)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f)
+                                        ) {
+                                            val colorsToShow = mediaItem.colors.take(3)
+                                            colorsToShow.forEachIndexed { index, colorInt ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                        .background(Color(colorInt))
+                                                ) {
+                                                    if (index != colorsToShow.lastIndex) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .align(Alignment.CenterEnd)
+                                                                .width(2.dp)
+                                                                .fillMaxHeight()
+                                                                .background(Color.Black)
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -347,6 +456,7 @@ fun EntryDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
+
                         val obsScrollState = rememberScrollState()
                         Box(
                             modifier = Modifier
@@ -402,6 +512,13 @@ fun EntryDetailScreen(
                 Spacer(modifier = Modifier.width(1.dp))
 
                 Row {
+                    Text(
+                        text = "Export PDF",
+                        modifier = Modifier.clickable { onExportPdf(entry) },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(24.dp))
                     Text(
                         text = "Edit",
                         modifier = Modifier.clickable { onEdit() },
