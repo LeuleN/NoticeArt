@@ -211,8 +211,8 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 audioUris = audioUris,
                 isDraft = true
             )
-            repository.insert(draftEntry)
-            loadDraft()
+            // DO NOT insert into repository here. Only keep in memory.
+            _draft.value = draftEntry
             editingOriginalId = null
             originalEntrySnapshot = null
         }
@@ -234,7 +234,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             _draft.value?.let {
                 val updated = it.copy(title = title)
                 _draft.value = updated
-                repository.update(updated)
+                if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(updated)) {
+                    val existingDraft = repository.getDraft()
+                    if (existingDraft == null && !isEditing) {
+                        repository.insert(updated)
+                    } else {
+                        repository.update(updated)
+                    }
+                }
             }
         }
     }
@@ -244,7 +251,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             _draft.value?.let {
                 val updated = it.copy(observation = observation)
                 _draft.value = updated
-                repository.update(updated)
+                if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(updated)) {
+                    val existingDraft = repository.getDraft()
+                    if (existingDraft == null && !isEditing) {
+                        repository.insert(updated)
+                    } else {
+                        repository.update(updated)
+                    }
+                }
             }
         }
     }
@@ -271,7 +285,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
                 val updated = draft.copy(media = updatedMedia)
                 _draft.value = updated
-                repository.update(updated)
+                if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(updated)) {
+                    val existingDraft = repository.getDraft()
+                    if (existingDraft == null && !isEditing) {
+                        repository.insert(updated)
+                    } else {
+                        repository.update(updated)
+                    }
+                }
             }
         }
     }
@@ -421,7 +442,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 if (uri !in draft.audioUris) {
                     val updated = draft.copy(audioUris = draft.audioUris + uri)
                     _draft.value = updated
-                    repository.update(updated)
+                    if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(updated)) {
+                        val existingDraft = repository.getDraft()
+                        if (existingDraft == null && !isEditing) {
+                            repository.insert(updated)
+                        } else {
+                            repository.update(updated)
+                        }
+                    }
                 }
             }
         }
@@ -447,7 +475,20 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     repository.update(updated)
                 } else {
-                    repository.update(currentDraft)
+                    // Only auto-save if the draft is not empty
+                    if (!com.example.userflowdemo.utils.isDraftEmpty(currentDraft)) {
+                        val existingDraft = repository.getDraft()
+                        if (existingDraft == null) {
+                            repository.insert(currentDraft)
+                        } else {
+                            repository.update(currentDraft)
+                        }
+                    } else {
+                        // If it's empty, ensure it's NOT in the database
+                        deleteDraftInternal()
+                        // But keep the in-memory draft so the UI doesn't clear
+                        _draft.value = currentDraft
+                    }
                 }
             }
         }
@@ -460,7 +501,12 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     isDraft = false,
                     timestamp = System.currentTimeMillis()
                 )
-                repository.update(published)
+                val existingDraft = repository.getDraft()
+                if (existingDraft == null || isEditing) {
+                    repository.insert(published)
+                } else {
+                    repository.update(published)
+                }
                 _draft.value = null
                 editingOriginalId = null
                 originalEntrySnapshot = null

@@ -36,6 +36,8 @@ class NewEntryUiTest {
                     onAutoSave = {},
                     onNavigateToImageMedia = {},
                     onRemoveMedia = {},
+                    onColorCapture = {},
+                    onTextureCapture = {},
                     onAddAudioFromFiles = {},
                     onRecordAudioNow = {},
                     onRemoveAudio = {}
@@ -70,6 +72,8 @@ class NewEntryUiTest {
                     onAutoSave = {},
                     onNavigateToImageMedia = {},
                     onRemoveMedia = {},
+                    onColorCapture = {},
+                    onTextureCapture = {},
                     onAddAudioFromFiles = {},
                     onRecordAudioNow = {},
                     onRemoveAudio = {}
@@ -110,6 +114,8 @@ class NewEntryUiTest {
                     onAutoSave = {},
                     onNavigateToImageMedia = {},
                     onRemoveMedia = {},
+                    onColorCapture = {},
+                    onTextureCapture = {},
                     onAddAudioFromFiles = {},
                     onRecordAudioNow = {},
                     onRemoveAudio = {}

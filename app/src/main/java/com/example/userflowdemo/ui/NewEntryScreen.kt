@@ -103,7 +103,11 @@ fun NewEntryScreen(
         if (hasChanges) {
             showDiscardDialog = true
         } else {
-            if (isEditing) onBackToDetail() else onBackToHome()
+            if (!isEditing) {
+                onBackToHome() // This will call viewModel.discardDraft() which deletes if empty
+            } else {
+                onBackToDetail()
+            }
         }
     }
 

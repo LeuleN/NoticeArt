@@ -140,7 +140,7 @@ fun HomeScreen(
                 ) {
                     item {
                         AddCard(onAddClick = {
-                            if (draft == null) {
+                            if (com.example.userflowdemo.utils.isDraftEmpty(draft)) {
                                 onAddClick()
                             } else {
                                 showDraftDialog = true
