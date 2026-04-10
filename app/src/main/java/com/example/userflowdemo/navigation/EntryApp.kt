@@ -271,8 +271,9 @@ fun EntryApp(
                     imageUri = uri,
                     initialColors = mediaItem?.colors ?: emptyList(),
                     viewModel = viewModel,
-                    onConfirm = { colors ->
-                        viewModel.addOrUpdateMediaItem(uri, colors, mediaItem?.textures ?: emptyList(), editingMediaIndex?.takeIf { it >= 0 }, currentMediaId)
+                    mediaIndex = editingMediaIndex,
+                    mediaId = currentMediaId,
+                    onConfirm = {
                         colorCaptureUri = null
                         if (captureBackDestination == "newEntry") {
                             editingMediaIndex = null

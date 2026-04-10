@@ -45,17 +45,29 @@ fun ColorCaptureScreen(
     imageUri: String,
     initialColors: List<Int>,
     viewModel: EntryViewModel,
-    onConfirm: (List<Int>) -> Unit,
+    mediaIndex: Int?,
+    mediaId: String?,
+    onConfirm: () -> Unit,
     onBack: () -> Unit
 ) {
-    var capturedColors by rememberSaveable { mutableStateOf(initialColors) }
-    var isEyedropperActive by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     
     val aiState by viewModel.aiState.collectAsState()
     val colorCount by viewModel.colorCount.collectAsState()
+    val draft by viewModel.draft.collectAsState()
+
+    val capturedColors = remember(draft, mediaIndex, mediaId) {
+        val mediaItem = if (mediaIndex != null && mediaIndex >= 0) {
+            draft?.media?.getOrNull(mediaIndex)
+        } else {
+            draft?.media?.find { it.id == mediaId }
+        }
+        mediaItem?.colors ?: initialColors
+    }
+
+    var isEyedropperActive by rememberSaveable { mutableStateOf(false) }
 
     // Fix: Reset AI state when the image changes to prevent cross-image leaks
     LaunchedEffect(imageUri) {
@@ -140,7 +152,7 @@ fun ColorCaptureScreen(
                                                         snackbarHostState.showSnackbar("Color already captured")
                                                     }
                                                 } else {
-                                                    capturedColors = capturedColors + pixel
+                                                    viewModel.updateColors(imageUri, capturedColors + pixel, mediaIndex, mediaId)
                                                 }
                                             }
                                         } catch (e: Exception) {}
@@ -175,7 +187,7 @@ fun ColorCaptureScreen(
                             Button(
                                 onClick = {
                                     val newColors = suggestions.filter { it !in capturedColors }
-                                    capturedColors = capturedColors + newColors
+                                    viewModel.updateColors(imageUri, capturedColors + newColors, mediaIndex, mediaId)
                                 },
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                 modifier = Modifier.height(32.dp)
@@ -206,7 +218,7 @@ fun ColorCaptureScreen(
                                         shape = CircleShape
                                     )
                                     .clickable(!isAlreadyCaptured) {
-                                        capturedColors = capturedColors + colorInt
+                                        viewModel.updateColors(imageUri, capturedColors + colorInt, mediaIndex, mediaId)
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -345,7 +357,7 @@ fun ColorCaptureScreen(
                                     .background(MaterialTheme.colorScheme.surface)
                                     .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                                     .clickable {
-                                        capturedColors = capturedColors.filter { it != colorInt }
+                                        viewModel.updateColors(imageUri, capturedColors.filter { it != colorInt }, mediaIndex, mediaId)
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -369,7 +381,7 @@ fun ColorCaptureScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             IconButton(
-                onClick = { onConfirm(capturedColors) },
+                onClick = { onConfirm() },
                 modifier = Modifier
                     .size(64.dp)
                     .background(MaterialTheme.colorScheme.primary, CircleShape)
