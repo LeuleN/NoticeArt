@@ -363,15 +363,18 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
                     if (uniqueSuggestions.isEmpty()) return@launch
 
-                    // Avoid duplicate names by finding the next available Auto Texture index
-                    val existingAutoIndices = mediaItem.textures
-                        .mapNotNull { it.name.removePrefix("Auto Texture ").toIntOrNull() }
-                    var nextIndex = (existingAutoIndices.maxOrNull() ?: 0) + 1
+                    val existingNames = mediaItem.textures.map { it.name }.toMutableSet()
+                    var nextIndex = 1
 
                     val newTextures = uniqueSuggestions.map { uriString ->
+                        while (existingNames.contains("Auto Texture $nextIndex") || existingNames.contains("Texture $nextIndex")) {
+                            nextIndex++
+                        }
+                        val name = "Auto Texture $nextIndex"
+                        existingNames.add(name)
                         Texture(
                             imageUri = uriString,
-                            name = "Auto Texture ${nextIndex++}"
+                            name = name
                         )
                     }
 
@@ -384,6 +387,51 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     _draft.value = updated
                     persistDraftInternal(updated)
                 }
+            }
+        }
+    }
+
+    fun generateNextTextureName(mediaId: String, isAuto: Boolean = true): String {
+        val textures = _draft.value?.media?.find { it.id == mediaId }?.textures ?: emptyList()
+        val existingNames = textures.map { it.name }.toSet()
+        val prefix = if (isAuto) "Auto Texture " else "Texture "
+        var i = 1
+        while (true) {
+            val name = "$prefix$i"
+            val altName = if (isAuto) "Texture $i" else "Auto Texture $i"
+            if (name !in existingNames && altName !in existingNames) {
+                return name
+            }
+            i++
+        }
+    }
+
+    fun clearAllTextures(mediaId: String) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                val updatedMedia = draft.media.map { item ->
+                    if (item.id == mediaId) {
+                        item.copy(textures = emptyList())
+                    } else item
+                }
+                val updated = draft.copy(media = updatedMedia)
+                _draft.value = updated
+                persistDraftInternal(updated)
+            }
+        }
+    }
+
+    fun clearAllColors(mediaId: String) {
+        viewModelScope.launch {
+            _draft.value?.let { draft ->
+                val updatedMedia = draft.media.map { item ->
+                    if (item.id == mediaId) {
+                        item.copy(colors = emptyList())
+                    } else item
+                }
+                val updated = draft.copy(media = updatedMedia)
+                _draft.value = updated
+                persistDraftInternal(updated)
             }
         }
     }

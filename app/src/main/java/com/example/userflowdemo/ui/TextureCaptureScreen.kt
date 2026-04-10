@@ -45,6 +45,28 @@ fun TextureCaptureScreen(
     val textureDetectionCount by viewModel.textureDetectionCount.collectAsState()
 
     var textureToRename by remember { mutableStateOf<Texture?>(null) }
+    var showClearConfirm by remember { mutableStateOf(false) }
+
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            title = { Text("Clear All Textures?") },
+            text = { Text("This will remove all detected and manual textures for this image.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.clearAllTextures(mediaId)
+                    showClearConfirm = false
+                }) {
+                    Text("Clear All", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     // Fix: Reset detection state when the image changes to prevent cross-image leaks
     LaunchedEffect(imageUri) {
@@ -149,12 +171,10 @@ fun TextureCaptureScreen(
                                     .clip(RoundedCornerShape(8.dp))
                                     .border(2.dp, MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
                                     .clickable {
-                                        val existingAutoIndices = textures
-                                            .mapNotNull { it.name.removePrefix("Auto Texture ").toIntOrNull() }
-                                        val nextIndex = (existingAutoIndices.maxOrNull() ?: 0) + 1
+                                        val name = viewModel.generateNextTextureName(mediaId, isAuto = true)
                                         val newTexture = Texture(
                                             imageUri = uri.toString(),
-                                            name = "Auto Texture $nextIndex"
+                                            name = name
                                         )
                                         viewModel.addTextureToImage(mediaId, newTexture)
                                     }
@@ -241,6 +261,20 @@ fun TextureCaptureScreen(
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = "Increase")
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        TextButton(
+                            onClick = { showClearConfirm = true },
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                "Clear All", 
+                                style = MaterialTheme.typography.labelMedium, 
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }

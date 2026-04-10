@@ -38,6 +38,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.AiState
 import com.example.userflowdemo.EntryViewModel
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +59,29 @@ fun ColorCaptureScreen(
     val colorDetectionCount by viewModel.colorDetectionCount.collectAsState()
     val draft by viewModel.draft.collectAsState()
 
+    var showClearConfirm by remember { mutableStateOf(false) }
+
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            title = { Text("Clear All Colors?") },
+            text = { Text("This will remove all detected and manually selected colors for this image.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.clearAllColors(mediaId ?: "")
+                    showClearConfirm = false
+                }) {
+                    Text("Clear All", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     val capturedColors = remember(draft, mediaIndex, mediaId) {
         val mediaItem = if (mediaIndex != null && mediaIndex >= 0) {
             draft?.media?.getOrNull(mediaIndex)
@@ -77,12 +101,12 @@ fun ColorCaptureScreen(
     val bitmap = remember(imageUri) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(imageUri))
+                val source = ImageDecoder.createSource(context.contentResolver, imageUri.toUri())
                 ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
                     decoder.isMutableRequired = true
                 }
             } else {
-                context.contentResolver.openInputStream(Uri.parse(imageUri))?.use {
+                context.contentResolver.openInputStream(imageUri.toUri())?.use {
                     BitmapFactory.decodeStream(it)
                 }
             }
@@ -305,6 +329,20 @@ fun ColorCaptureScreen(
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = "Increase")
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        TextButton(
+                            onClick = { showClearConfirm = true },
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                "Clear All", 
+                                style = MaterialTheme.typography.labelMedium, 
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }

@@ -16,7 +16,7 @@ class TextureDetectionService {
     fun getProminentTextureAreas(
         bitmap: Bitmap, 
         gridCount: Int = 10,
-        textureCount: Int = 6
+        textureCount: Int = 15
     ): List<Rect> {
         val mat = Mat()
         // Ensure bitmap is in a format OpenCV likes
@@ -114,7 +114,7 @@ class TextureDetectionService {
         if (remainder > 0) remainder--
         val midToTake = targetPerBucket + if (remainder > 0) 1 else 0
         if (remainder > 0) remainder--
-        val lowToTake = targetPerBucket + if (remainder > 0) 1 else 0
+        val lowToTake = targetPerBucket + 0
 
         selectFromBucket(highBucket, highToTake)
         selectFromBucket(midBucket, midToTake)
