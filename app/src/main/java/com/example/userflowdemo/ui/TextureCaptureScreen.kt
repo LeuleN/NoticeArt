@@ -42,7 +42,7 @@ fun TextureCaptureScreen(
     val textures = mediaItem?.textures ?: emptyList()
     
     val textureState by viewModel.textureState.collectAsState()
-    val textureCount by viewModel.textureCount.collectAsState()
+    val textureDetectionCount by viewModel.textureDetectionCount.collectAsState()
 
     var textureToRename by remember { mutableStateOf<Texture?>(null) }
 
@@ -149,9 +149,12 @@ fun TextureCaptureScreen(
                                     .clip(RoundedCornerShape(8.dp))
                                     .border(2.dp, MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
                                     .clickable {
+                                        val existingAutoIndices = textures
+                                            .mapNotNull { it.name.removePrefix("Auto Texture ").toIntOrNull() }
+                                        val nextIndex = (existingAutoIndices.maxOrNull() ?: 0) + 1
                                         val newTexture = Texture(
                                             imageUri = uri.toString(),
-                                            name = "Auto Texture ${textures.size + 1}"
+                                            name = "Auto Texture $nextIndex"
                                         )
                                         viewModel.addTextureToImage(mediaId, newTexture)
                                     }
@@ -210,7 +213,7 @@ fun TextureCaptureScreen(
                         
                         Spacer(modifier = Modifier.height(12.dp))
                         
-                        // Texture Count Stepper
+                        // Texture Detection Count Stepper
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -219,21 +222,21 @@ fun TextureCaptureScreen(
                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                         ) {
                             IconButton(
-                                onClick = { viewModel.setTextureCount(textureCount - 1) },
+                                onClick = { viewModel.setTextureDetectionCount(textureDetectionCount - 1) },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(Icons.Default.Remove, contentDescription = "Decrease")
                             }
                             
                             Text(
-                                text = textureCount.toString(),
+                                text = textureDetectionCount.toString(),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp)
                             )
                             
                             IconButton(
-                                onClick = { viewModel.setTextureCount(textureCount + 1) },
+                                onClick = { viewModel.setTextureDetectionCount(textureDetectionCount + 1) },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = "Increase")

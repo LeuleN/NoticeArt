@@ -50,12 +50,12 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     val textureState: StateFlow<TextureDetectionState> = _textureState
 
     // User-controlled texture detection count
-    private val _textureCount = MutableStateFlow(6)
-    val textureCount: StateFlow<Int> = _textureCount
+    private val _textureDetectionCount = MutableStateFlow(6)
+    val textureDetectionCount: StateFlow<Int> = _textureDetectionCount
 
     // User-controlled color detection count
-    private val _colorCount = MutableStateFlow(6)
-    val colorCount: StateFlow<Int> = _colorCount
+    private val _colorDetectionCount = MutableStateFlow(6)
+    val colorDetectionCount: StateFlow<Int> = _colorDetectionCount
 
     private val _sortOption = MutableStateFlow(EntrySortOption.LAST_MODIFIED)
     val sortOption: StateFlow<EntrySortOption> = _sortOption.asStateFlow()
@@ -117,17 +117,17 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setTextureCount(count: Int) {
-        _textureCount.value = count.coerceIn(4, 15)
+    fun setTextureDetectionCount(count: Int) {
+        _textureDetectionCount.value = count.coerceIn(4, 15)
     }
 
-    fun setColorCount(count: Int) {
-        _colorCount.value = count.coerceIn(4, 10)
+    fun setColorDetectionCount(count: Int) {
+        _colorDetectionCount.value = count.coerceIn(4, 10)
     }
 
     fun suggestColorsForImage(context: Context, uriString: String) {
         viewModelScope.launch {
-            val count = _colorCount.value
+            val count = _colorDetectionCount.value
             _aiState.value = AiState.Loading
             try {
                 val uri = uriString.toUri()
@@ -147,7 +147,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun detectTextures(context: Context, uriString: String) {
         viewModelScope.launch {
-            val count = _textureCount.value
+            val count = _textureDetectionCount.value
             _textureState.value = TextureDetectionState.Loading
             try {
                 val uri = uriString.toUri()
@@ -234,33 +234,21 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateDraft(title: String) {
         _draft.update { it?.copy(title = title) }
-        persistDraft()
+        viewModelScope.launch {
+            _draft.value?.let { persistDraftInternal(it) }
+        }
     }
 
     fun updateObservation(observation: String) {
         _draft.update { it?.copy(observation = observation) }
-        persistDraft()
+        viewModelScope.launch {
+            _draft.value?.let { persistDraftInternal(it) }
+        }
     }
 
     private fun persistDraft() {
         viewModelScope.launch {
-            draftMutex.withLock {
-                val current = _draft.value ?: return@withLock
-                if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(current)) {
-                    val existingDraft = repository.getDraft()
-                    if (existingDraft == null && !isEditing) {
-                        val newId = repository.insert(current)
-                        _draft.update { if (it != null && it.id == 0L) it.copy(id = newId) else it }
-                    } else {
-                        val idToUse = if (current.id == 0L && existingDraft != null) existingDraft.id else current.id
-                        val toUpdate = current.copy(id = idToUse)
-                        repository.update(toUpdate)
-                        if (current.id == 0L && existingDraft != null) {
-                            _draft.update { if (it != null && it.id == 0L) it.copy(id = idToUse) else it }
-                        }
-                    }
-                }
-            }
+            _draft.value?.let { persistDraftInternal(it) }
         }
     }
 
@@ -338,9 +326,10 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             _draft.value?.let { draft ->
                 val updatedMedia = draft.media.map { item ->
                     if (item.id == mediaId) {
-                        // Check if texture with same imageUri already exists
-                        val duplicate = item.textures.any { it.imageUri == texture.imageUri }
-                        if (duplicate) return@map item
+                        // Check for duplicate imageUri (ignore nulls which are placeholders)
+                        if (texture.imageUri != null && item.textures.any { it.imageUri == texture.imageUri }) {
+                            return@map item
+                        }
 
                         val exists = item.textures.any { it.id == texture.id }
                         val newTextures = if (exists) {
@@ -353,7 +342,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val updated = draft.copy(media = updatedMedia)
                 _draft.value = updated
-                repository.update(updated)
+                persistDraftInternal(updated)
             }
         }
     }
@@ -366,13 +355,23 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     val mediaItem = draft.media.find { it.id == mediaId } ?: return@launch
                     val currentUris = mediaItem.textures.mapNotNull { it.imageUri }.toSet()
 
-                    val filteredSuggestions = currentState.suggestedTextures.filter { it.toString() !in currentUris }
-                    if (filteredSuggestions.isEmpty()) return@launch
+                    // Ensure unique textures and filter out already added ones
+                    val uniqueSuggestions = currentState.suggestedTextures
+                        .map { it.toString() }
+                        .distinct()
+                        .filter { it !in currentUris }
 
-                    val newTextures = filteredSuggestions.mapIndexed { index, uri ->
+                    if (uniqueSuggestions.isEmpty()) return@launch
+
+                    // Avoid duplicate names by finding the next available Auto Texture index
+                    val existingAutoIndices = mediaItem.textures
+                        .mapNotNull { it.name.removePrefix("Auto Texture ").toIntOrNull() }
+                    var nextIndex = (existingAutoIndices.maxOrNull() ?: 0) + 1
+
+                    val newTextures = uniqueSuggestions.map { uriString ->
                         Texture(
-                            imageUri = uri.toString(),
-                            name = "Auto Texture ${mediaItem.textures.size + index + 1}"
+                            imageUri = uriString,
+                            name = "Auto Texture ${nextIndex++}"
                         )
                     }
 
@@ -383,7 +382,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     val updated = draft.copy(media = updatedMedia)
                     _draft.value = updated
-                    repository.update(updated)
+                    persistDraftInternal(updated)
                 }
             }
         }
@@ -404,7 +403,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val updated = draft.copy(media = updatedMedia)
                 _draft.value = updated
-                repository.update(updated)
+                persistDraftInternal(updated)
             }
         }
     }
@@ -419,7 +418,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val updated = draft.copy(media = updatedMedia)
                 _draft.value = updated
-                repository.update(updated)
+                persistDraftInternal(updated)
             }
         }
     }
@@ -433,7 +432,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     updatedMedia[mediaIndex] = currentItem.copy(textures = textures)
                     val updated = draft.copy(media = updatedMedia)
                     _draft.value = updated
-                    repository.update(updated)
+                    persistDraftInternal(updated)
                 }
             }
         }
@@ -447,7 +446,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     updatedMedia.removeAt(index)
                     val updated = draft.copy(media = updatedMedia)
                     _draft.value = updated
-                    repository.update(updated)
+                    persistDraftInternal(updated)
                 }
             }
         }
@@ -459,7 +458,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 val updatedMedia = draft.media.filter { it.id != mediaId }
                 val updated = draft.copy(media = updatedMedia)
                 _draft.value = updated
-                repository.update(updated)
+                persistDraftInternal(updated)
             }
         }
     }
@@ -478,14 +477,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 if (uri !in draft.audioUris) {
                     val updated = draft.copy(audioUris = draft.audioUris + uri)
                     _draft.value = updated
-                    if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(updated)) {
-                        val existingDraft = repository.getDraft()
-                        if (existingDraft == null && !isEditing) {
-                            repository.insert(updated)
-                        } else {
-                            repository.update(updated)
-                        }
-                    }
+                    persistDraftInternal(updated)
                 }
             }
         }
@@ -496,7 +488,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             _draft.value?.let { draft ->
                 val updated = draft.copy(audioUris = draft.audioUris.filter { it != uri })
                 _draft.value = updated
-                repository.update(updated)
+                persistDraftInternal(updated)
             }
         }
     }

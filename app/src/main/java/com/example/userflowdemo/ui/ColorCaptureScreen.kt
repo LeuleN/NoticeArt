@@ -55,7 +55,7 @@ fun ColorCaptureScreen(
     val scope = rememberCoroutineScope()
     
     val aiState by viewModel.aiState.collectAsState()
-    val colorCount by viewModel.colorCount.collectAsState()
+    val colorDetectionCount by viewModel.colorDetectionCount.collectAsState()
     val draft by viewModel.draft.collectAsState()
 
     val capturedColors = remember(draft, mediaIndex, mediaId) {
@@ -286,21 +286,21 @@ fun ColorCaptureScreen(
                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                         ) {
                             IconButton(
-                                onClick = { viewModel.setColorCount(colorCount - 1) },
+                                onClick = { viewModel.setColorDetectionCount(colorDetectionCount - 1) },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(Icons.Default.Remove, contentDescription = "Decrease")
                             }
                             
                             Text(
-                                text = colorCount.toString(),
+                                text = colorDetectionCount.toString(),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp)
                             )
                             
                             IconButton(
-                                onClick = { viewModel.setColorCount(colorCount + 1) },
+                                onClick = { viewModel.setColorDetectionCount(colorDetectionCount + 1) },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = "Increase")
