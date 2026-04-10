@@ -497,16 +497,24 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     fun publishDraft() {
         viewModelScope.launch {
             _draft.value?.let { currentDraft ->
+                if (com.example.userflowdemo.utils.isDraftEmpty(currentDraft) && !isEditing) return@launch
+
                 val published = currentDraft.copy(
                     isDraft = false,
                     timestamp = System.currentTimeMillis()
                 )
-                val existingDraft = repository.getDraft()
-                if (existingDraft == null || isEditing) {
-                    repository.insert(published)
-                } else {
+
+                if (isEditing) {
                     repository.update(published)
+                } else {
+                    val existingDraft = repository.getDraft()
+                    if (existingDraft == null) {
+                        repository.insert(published) // INSERT if new
+                    } else {
+                        repository.update(published) // UPDATE if existing draft
+                    }
                 }
+
                 _draft.value = null
                 editingOriginalId = null
                 originalEntrySnapshot = null
