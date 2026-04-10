@@ -16,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import androidx.core.net.toUri
 
 sealed class AiState {
@@ -86,6 +88,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _draft = MutableStateFlow<Entry?>(null)
     val draft: StateFlow<Entry?> = _draft
+    private val draftMutex = Mutex()
 
     val mediaItems: StateFlow<List<MediaItem>> = _draft
         .map { it?.media ?: emptyList() }
@@ -230,33 +233,31 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateDraft(title: String) {
-        viewModelScope.launch {
-            _draft.value?.let {
-                val updated = it.copy(title = title)
-                _draft.value = updated
-                if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(updated)) {
-                    val existingDraft = repository.getDraft()
-                    if (existingDraft == null && !isEditing) {
-                        repository.insert(updated)
-                    } else {
-                        repository.update(updated)
-                    }
-                }
-            }
-        }
+        _draft.update { it?.copy(title = title) }
+        persistDraft()
     }
 
     fun updateObservation(observation: String) {
+        _draft.update { it?.copy(observation = observation) }
+        persistDraft()
+    }
+
+    private fun persistDraft() {
         viewModelScope.launch {
-            _draft.value?.let {
-                val updated = it.copy(observation = observation)
-                _draft.value = updated
-                if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(updated)) {
+            draftMutex.withLock {
+                val current = _draft.value ?: return@withLock
+                if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(current)) {
                     val existingDraft = repository.getDraft()
                     if (existingDraft == null && !isEditing) {
-                        repository.insert(updated)
+                        val newId = repository.insert(current)
+                        _draft.update { if (it != null && it.id == 0L) it.copy(id = newId) else it }
                     } else {
-                        repository.update(updated)
+                        val idToUse = if (current.id == 0L && existingDraft != null) existingDraft.id else current.id
+                        val toUpdate = current.copy(id = idToUse)
+                        repository.update(toUpdate)
+                        if (current.id == 0L && existingDraft != null) {
+                            _draft.update { if (it != null && it.id == 0L) it.copy(id = idToUse) else it }
+                        }
                     }
                 }
             }
@@ -267,8 +268,6 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _draft.value?.let { draft ->
                 val updatedMedia = draft.media.toMutableList()
-                val newItem = MediaItem(imageUri = uri, colors = colors)
-
                 if (index != null && index in updatedMedia.indices) {
                     val existingItem = updatedMedia[index]
                     updatedMedia[index] = existingItem.copy(imageUri = uri, colors = colors, textures = textures)
@@ -285,12 +284,24 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
                 val updated = draft.copy(media = updatedMedia)
                 _draft.value = updated
-                if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(updated)) {
-                    val existingDraft = repository.getDraft()
-                    if (existingDraft == null && !isEditing) {
-                        repository.insert(updated)
-                    } else {
-                        repository.update(updated)
+                persistDraftInternal(updated)
+            }
+        }
+    }
+
+    private suspend fun persistDraftInternal(entry: Entry) {
+        draftMutex.withLock {
+            if (isEditing || !com.example.userflowdemo.utils.isDraftEmpty(entry)) {
+                val existingDraft = repository.getDraft()
+                if (existingDraft == null && !isEditing) {
+                    val newId = repository.insert(entry)
+                    _draft.update { if (it != null && it.id == 0L) it.copy(id = newId) else it }
+                } else {
+                    val idToUse = if (entry.id == 0L && existingDraft != null) existingDraft.id else entry.id
+                    val toUpdate = entry.copy(id = idToUse)
+                    repository.update(toUpdate)
+                    if (entry.id == 0L && existingDraft != null) {
+                        _draft.update { if (it != null && it.id == 0L) it.copy(id = idToUse) else it }
                     }
                 }
             }

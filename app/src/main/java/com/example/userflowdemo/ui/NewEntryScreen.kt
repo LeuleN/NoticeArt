@@ -64,8 +64,8 @@ fun NewEntryScreen(
     onRemoveAudio: (String) -> Unit
 ) {
     val currentEntry = draft
-    var title by rememberSaveable(currentEntry?.id) { mutableStateOf(currentEntry?.title ?: "") }
-    var observation by rememberSaveable(currentEntry?.id) { mutableStateOf(currentEntry?.observation ?: "") }
+    val title = currentEntry?.title ?: ""
+    val observation = currentEntry?.observation ?: ""
     var showError by rememberSaveable { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -367,7 +367,6 @@ fun NewEntryScreen(
                     TextField(
                         value = title,
                         onValueChange = {
-                            title = it
                             showError = false
                             onTitleChange(it)
                         },
@@ -682,7 +681,6 @@ fun NewEntryScreen(
                         TextField(
                             value = observation,
                             onValueChange = {
-                                observation = it
                                 onObservationChange(it)
                             },
                             placeholder = { Text("I notice...") },

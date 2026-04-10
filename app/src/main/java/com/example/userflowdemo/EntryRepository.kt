@@ -9,8 +9,8 @@ class EntryRepository(
     val allEntries: Flow<List<Entry>> =
         entryDao.getAllEntries()
 
-    suspend fun insert(entry: Entry) {
-        entryDao.insert(entry)
+    suspend fun insert(entry: Entry): Long {
+        return entryDao.insert(entry)
     }
 
     suspend fun update(entry: Entry) {
