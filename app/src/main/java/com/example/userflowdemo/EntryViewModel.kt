@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import androidx.core.net.toUri
+import java.util.Locale
 
 sealed class AiState {
     object Idle : AiState()
@@ -363,18 +364,21 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
                     if (uniqueSuggestions.isEmpty()) return@launch
 
-                    val existingNames = mediaItem.textures.map { it.name }.toMutableSet()
+                    val existingIndices = mediaItem.textures.mapNotNull { it.autoIndex }.toMutableSet()
                     var nextIndex = 1
 
                     val newTextures = uniqueSuggestions.map { uriString ->
-                        while (existingNames.contains("Auto Texture $nextIndex") || existingNames.contains("Texture $nextIndex")) {
+                        while (existingIndices.contains(nextIndex)) {
                             nextIndex++
                         }
-                        val name = "Auto Texture $nextIndex"
-                        existingNames.add(name)
+                        val name = String.format(Locale.getDefault(), "Auto Texture %02d", nextIndex)
+                        val index = nextIndex
+                        existingIndices.add(index)
+                        nextIndex++
                         Texture(
                             imageUri = uriString,
-                            name = name
+                            name = name,
+                            autoIndex = index
                         )
                     }
 
@@ -391,19 +395,25 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun generateNextTextureName(mediaId: String, isAuto: Boolean = true): String {
+    fun getNextTextureInfo(mediaId: String, isAuto: Boolean = true): Pair<String, Int?> {
         val textures = _draft.value?.media?.find { it.id == mediaId }?.textures ?: emptyList()
-        val existingNames = textures.map { it.name }.toSet()
+        val existingIndices = textures.mapNotNull { it.autoIndex }.toSet()
         val prefix = if (isAuto) "Auto Texture " else "Texture "
         var i = 1
         while (true) {
-            val name = "$prefix$i"
-            val altName = if (isAuto) "Texture $i" else "Auto Texture $i"
-            if (name !in existingNames && altName !in existingNames) {
-                return name
+            if (i !in existingIndices) {
+                val name = if (isAuto) String.format(Locale.getDefault(), "$prefix%02d", i) else "$prefix$i"
+                // Check if name also exists (just in case of manual renames)
+                if (textures.none { it.name == name }) {
+                    return Pair(name, if (isAuto) i else null)
+                }
             }
             i++
         }
+    }
+
+    fun generateNextTextureName(mediaId: String, isAuto: Boolean = true): String {
+        return getNextTextureInfo(mediaId, isAuto).first
     }
 
     fun clearAllTextures(mediaId: String) {

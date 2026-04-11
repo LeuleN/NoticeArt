@@ -8,6 +8,7 @@ data class Texture(
     val imageUri: String?, 
     val name: String,
     val isCustomName: Boolean = false,
+    val autoIndex: Int? = null,
     val cropRect: CropRect? = null
 )
 

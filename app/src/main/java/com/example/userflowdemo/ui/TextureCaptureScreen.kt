@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.userflowdemo.EntryViewModel
@@ -73,10 +74,14 @@ fun TextureCaptureScreen(
         viewModel.resetTextureState()
     }
 
-    // Ordering logic: Custom-named textures FIRST, then default textures
+    // Ordering logic: Custom-named textures FIRST, then default textures (numerically)
     val sortedTextures = remember(textures) {
         val (custom, default) = textures.partition { it.isCustomName }
-        custom.sortedBy { it.name } + default.sortedBy { it.name }
+        // Sort custom names alphabetically, and auto textures by their numeric index
+        custom.sortedBy { it.name.lowercase() } + default.sortedWith(
+            compareBy<Texture> { it.autoIndex ?: Int.MAX_VALUE }
+                .thenBy { it.name }
+        )
     }
 
     if (textureToRename != null) {
@@ -171,10 +176,11 @@ fun TextureCaptureScreen(
                                     .clip(RoundedCornerShape(8.dp))
                                     .border(2.dp, MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
                                     .clickable {
-                                        val name = viewModel.generateNextTextureName(mediaId, isAuto = true)
+                                        val (name, index) = viewModel.getNextTextureInfo(mediaId, isAuto = true)
                                         val newTexture = Texture(
                                             imageUri = uri.toString(),
-                                            name = name
+                                            name = name,
+                                            autoIndex = index
                                         )
                                         viewModel.addTextureToImage(mediaId, newTexture)
                                     }
@@ -206,7 +212,7 @@ fun TextureCaptureScreen(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp),
+                    .height(160.dp), // Increased height slightly to accommodate 2 lines of text
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -372,7 +378,17 @@ fun TextureItem(
                         },
                         leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
                     )
-                    if (!texture.name.startsWith("Auto Texture")) {
+                    if (!texture.isCustomName) {
+                        // For auto textures, we might want to edit crop too if they are just suggestions
+                        DropdownMenuItem(
+                            text = { Text("Edit Crop") },
+                            onClick = {
+                                showMenu = false
+                                onEditCrop()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Crop, contentDescription = null) }
+                        )
+                    } else {
                         DropdownMenuItem(
                             text = { Text("Edit Crop") },
                             onClick = {
@@ -397,7 +413,8 @@ fun TextureItem(
         Text(
             text = texture.name,
             style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 4.dp).fillMaxWidth()
         )
