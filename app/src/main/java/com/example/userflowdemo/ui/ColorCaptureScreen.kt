@@ -61,6 +61,24 @@ fun ColorCaptureScreen(
 
     var showClearConfirm by remember { mutableStateOf(false) }
 
+    // Derived State: Single Source of Truth for captured colors
+    // We lookup the current colors from the ViewModel's draft StateFlow
+    val capturedColors = remember(draft, mediaIndex, mediaId, initialColors) {
+        val mediaItem = if (mediaIndex != null && mediaIndex >= 0) {
+            draft?.media?.getOrNull(mediaIndex)
+        } else if (mediaId != null) {
+            draft?.media?.find { it.id == mediaId }
+        } else {
+            draft?.media?.find { it.imageUri == imageUri }
+        }
+        mediaItem?.colors ?: initialColors
+    }
+    
+    // CRITICAL FIX: pointerInput captures the 'capturedColors' list from its initial scope.
+    // To ensure the gesture listener always uses the LATEST list (so it can append to it),
+    // we use rememberUpdatedState. This allows the closure to access the current value.
+    val latestCapturedColors by rememberUpdatedState(capturedColors)
+
     if (showClearConfirm) {
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
@@ -80,15 +98,6 @@ fun ColorCaptureScreen(
                 }
             }
         )
-    }
-
-    val capturedColors = remember(draft, mediaIndex, mediaId) {
-        val mediaItem = if (mediaIndex != null && mediaIndex >= 0) {
-            draft?.media?.getOrNull(mediaIndex)
-        } else {
-            draft?.media?.find { it.id == mediaId }
-        }
-        mediaItem?.colors ?: initialColors
     }
 
     var isEyedropperActive by rememberSaveable { mutableStateOf(false) }
@@ -171,12 +180,14 @@ fun ColorCaptureScreen(
                                                 val bitmapY = ((offset.y - top) / scale).toInt().coerceIn(0, b.height - 1)
                                                 val pixel = b.getPixel(bitmapX, bitmapY)
                                                 
-                                                if (capturedColors.contains(pixel)) {
+                                                if (latestCapturedColors.contains(pixel)) {
                                                     scope.launch {
                                                         snackbarHostState.showSnackbar("Color already captured")
                                                     }
                                                 } else {
-                                                    viewModel.updateColors(imageUri, capturedColors + pixel, mediaIndex, mediaId)
+                                                    // CRITICAL: Use latestCapturedColors (the state-backed value) 
+                                                    // to ensure we append to the most recent version of the list.
+                                                    viewModel.updateColors(imageUri, latestCapturedColors + pixel, mediaIndex, mediaId)
                                                 }
                                             }
                                         } catch (e: Exception) {}
@@ -193,7 +204,7 @@ fun ColorCaptureScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Suggested Colors Section (matches Texture screen style)
+            // Suggested Colors Section
             if (aiState is AiState.Success) {
                 val suggestions = (aiState as AiState.Success).colors
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -211,7 +222,9 @@ fun ColorCaptureScreen(
                             Button(
                                 onClick = {
                                     val newColors = suggestions.filter { it !in capturedColors }
-                                    viewModel.updateColors(imageUri, capturedColors + newColors, mediaIndex, mediaId)
+                                    if (newColors.isNotEmpty()) {
+                                        viewModel.updateColors(imageUri, capturedColors + newColors, mediaIndex, mediaId)
+                                    }
                                 },
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                 modifier = Modifier.height(32.dp)

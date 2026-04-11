@@ -255,7 +255,9 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateColors(uri: String, colors: List<Int>, index: Int? = null, mediaId: String? = null) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+                _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.toMutableList()
                 if (index != null && index in updatedMedia.indices) {
                     val existingItem = updatedMedia[index]
@@ -268,19 +270,30 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                         updatedMedia.add(MediaItem(id = mediaId, imageUri = uri, colors = colors))
                     }
                 } else {
-                    updatedMedia.add(MediaItem(imageUri = uri, colors = colors))
+                    // Fallback search by URI if ID is not provided
+                    val existingIndex = updatedMedia.indexOfFirst { it.imageUri == uri }
+                    if (existingIndex != -1) {
+                        updatedMedia[existingIndex] = updatedMedia[existingIndex].copy(colors = colors)
+                    } else {
+                        updatedMedia.add(MediaItem(imageUri = uri, colors = colors))
+                    }
                 }
 
-                val updated = draft.copy(media = updatedMedia)
-                _draft.value = updated
-                persistDraftInternal(updated)
+                val updatedEntry = draft.copy(media = updatedMedia)
+                // Side effect: persist to DB
+                viewModelScope.launch {
+                    persistDraftInternal(updatedEntry)
+                }
+                updatedEntry
             }
         }
     }
 
     fun addOrUpdateMediaItem(uri: String, colors: List<Int>, textures: List<Texture> = emptyList(), index: Int? = null, mediaId: String? = null) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.toMutableList()
                 if (index != null && index in updatedMedia.indices) {
                     val existingItem = updatedMedia[index]
@@ -296,9 +309,11 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     updatedMedia.add(MediaItem(id = mediaId ?: java.util.UUID.randomUUID().toString(), imageUri = uri, colors = colors, textures = textures))
                 }
 
-                val updated = draft.copy(media = updatedMedia)
-                _draft.value = updated
-                persistDraftInternal(updated)
+                val updatedEntry = draft.copy(media = updatedMedia)
+                viewModelScope.launch {
+                    persistDraftInternal(updatedEntry)
+                }
+                updatedEntry
             }
         }
     }
@@ -324,7 +339,9 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addTextureToImage(mediaId: String, texture: Texture) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.map { item ->
                     if (item.id == mediaId) {
                         // Check for duplicate imageUri (ignore nulls which are placeholders)
@@ -341,9 +358,11 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                         item.copy(textures = newTextures)
                     } else item
                 }
-                val updated = draft.copy(media = updatedMedia)
-                _draft.value = updated
-                persistDraftInternal(updated)
+                val updatedEntry = draft.copy(media = updatedMedia)
+                viewModelScope.launch {
+                    persistDraftInternal(updatedEntry)
+                }
+                updatedEntry
             }
         }
     }
@@ -352,8 +371,10 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         val currentState = _textureState.value
         if (currentState is TextureDetectionState.Success) {
             viewModelScope.launch {
-                _draft.value?.let { draft ->
-                    val mediaItem = draft.media.find { it.id == mediaId } ?: return@launch
+                _draft.update { draft ->
+                    if (draft == null) return@update null
+                    
+                    val mediaItem = draft.media.find { it.id == mediaId } ?: return@update draft
                     val currentUris = mediaItem.textures.mapNotNull { it.imageUri }.toSet()
 
                     // Ensure unique textures and filter out already added ones
@@ -362,7 +383,7 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                         .distinct()
                         .filter { it !in currentUris }
 
-                    if (uniqueSuggestions.isEmpty()) return@launch
+                    if (uniqueSuggestions.isEmpty()) return@update draft
 
                     val existingIndices = mediaItem.textures.mapNotNull { it.autoIndex }.toMutableSet()
                     var nextIndex = 1
@@ -387,9 +408,11 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                             item.copy(textures = item.textures + newTextures)
                         } else item
                     }
-                    val updated = draft.copy(media = updatedMedia)
-                    _draft.value = updated
-                    persistDraftInternal(updated)
+                    val updatedEntry = draft.copy(media = updatedMedia)
+                    viewModelScope.launch {
+                        persistDraftInternal(updatedEntry)
+                    }
+                    updatedEntry
                 }
             }
         }
@@ -418,37 +441,47 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearAllTextures(mediaId: String) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.map { item ->
                     if (item.id == mediaId) {
                         item.copy(textures = emptyList())
                     } else item
                 }
-                val updated = draft.copy(media = updatedMedia)
-                _draft.value = updated
-                persistDraftInternal(updated)
+                val updatedEntry = draft.copy(media = updatedMedia)
+                viewModelScope.launch {
+                    persistDraftInternal(updatedEntry)
+                }
+                updatedEntry
             }
         }
     }
 
     fun clearAllColors(mediaId: String) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.map { item ->
                     if (item.id == mediaId) {
                         item.copy(colors = emptyList())
                     } else item
                 }
-                val updated = draft.copy(media = updatedMedia)
-                _draft.value = updated
-                persistDraftInternal(updated)
+                val updatedEntry = draft.copy(media = updatedMedia)
+                viewModelScope.launch {
+                    persistDraftInternal(updatedEntry)
+                }
+                updatedEntry
             }
         }
     }
 
     fun renameTexture(mediaId: String, textureId: String, newName: String) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.map { item ->
                     if (item.id == mediaId) {
                         val updatedTextures = item.textures.map { texture ->
@@ -459,38 +492,50 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                         item.copy(textures = updatedTextures)
                     } else item
                 }
-                val updated = draft.copy(media = updatedMedia)
-                _draft.value = updated
-                persistDraftInternal(updated)
+                val updatedEntry = draft.copy(media = updatedMedia)
+                viewModelScope.launch {
+                    persistDraftInternal(updatedEntry)
+                }
+                updatedEntry
             }
         }
     }
 
     fun removeTextureFromImage(mediaId: String, textureId: String) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.map { item ->
                     if (item.id == mediaId) {
                         item.copy(textures = item.textures.filter { it.id != textureId })
                     } else item
                 }
-                val updated = draft.copy(media = updatedMedia)
-                _draft.value = updated
-                persistDraftInternal(updated)
+                val updatedEntry = draft.copy(media = updatedMedia)
+                viewModelScope.launch {
+                    persistDraftInternal(updatedEntry)
+                }
+                updatedEntry
             }
         }
     }
 
     fun updateTextures(mediaIndex: Int, textures: List<Texture>) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.toMutableList()
                 if (mediaIndex in updatedMedia.indices) {
                     val currentItem = updatedMedia[mediaIndex]
                     updatedMedia[mediaIndex] = currentItem.copy(textures = textures)
-                    val updated = draft.copy(media = updatedMedia)
-                    _draft.value = updated
-                    persistDraftInternal(updated)
+                    val updatedEntry = draft.copy(media = updatedMedia)
+                    viewModelScope.launch {
+                        persistDraftInternal(updatedEntry)
+                    }
+                    updatedEntry
+                } else {
+                    draft
                 }
             }
         }
@@ -498,13 +543,19 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removeMediaItem(index: Int) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.toMutableList()
                 if (index in updatedMedia.indices) {
                     updatedMedia.removeAt(index)
-                    val updated = draft.copy(media = updatedMedia)
-                    _draft.value = updated
-                    persistDraftInternal(updated)
+                    val updatedEntry = draft.copy(media = updatedMedia)
+                    viewModelScope.launch {
+                        persistDraftInternal(updatedEntry)
+                    }
+                    updatedEntry
+                } else {
+                    draft
                 }
             }
         }
@@ -512,11 +563,15 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removeImage(mediaId: String) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 val updatedMedia = draft.media.filter { it.id != mediaId }
-                val updated = draft.copy(media = updatedMedia)
-                _draft.value = updated
-                persistDraftInternal(updated)
+                val updatedEntry = draft.copy(media = updatedMedia)
+                viewModelScope.launch {
+                    persistDraftInternal(updatedEntry)
+                }
+                updatedEntry
             }
         }
     }
@@ -531,11 +586,17 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addAudioUri(uri: String) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
                 if (uri !in draft.audioUris) {
-                    val updated = draft.copy(audioUris = draft.audioUris + uri)
-                    _draft.value = updated
-                    persistDraftInternal(updated)
+                    val updatedEntry = draft.copy(audioUris = draft.audioUris + uri)
+                    viewModelScope.launch {
+                        persistDraftInternal(updatedEntry)
+                    }
+                    updatedEntry
+                } else {
+                    draft
                 }
             }
         }
@@ -543,10 +604,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removeAudioUri(uri: String) {
         viewModelScope.launch {
-            _draft.value?.let { draft ->
-                val updated = draft.copy(audioUris = draft.audioUris.filter { it != uri })
-                _draft.value = updated
-                persistDraftInternal(updated)
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
+                val updatedEntry = draft.copy(audioUris = draft.audioUris.filter { it != uri })
+                viewModelScope.launch {
+                    persistDraftInternal(updatedEntry)
+                }
+                updatedEntry
             }
         }
     }
