@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -25,6 +26,7 @@ import coil.compose.AsyncImage
 import com.example.userflowdemo.EntryViewModel
 import com.example.userflowdemo.Texture
 import com.example.userflowdemo.TextureDetectionState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +40,9 @@ fun TextureCaptureScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    
     val mediaItems by viewModel.mediaItems.collectAsState()
     val mediaItem = remember(mediaItems, mediaId) { mediaItems.find { it.id == mediaId } }
     val textures = mediaItem?.textures ?: emptyList()
@@ -69,7 +74,7 @@ fun TextureCaptureScreen(
         )
     }
 
-    // Fix: Reset detection state when the image changes to prevent cross-image leaks
+    // Fix: Reset detection state ONLY when the image URI actually changes
     LaunchedEffect(imageUri) {
         viewModel.resetTextureState()
     }
@@ -77,7 +82,6 @@ fun TextureCaptureScreen(
     // Ordering logic: Custom-named textures FIRST, then default textures (numerically)
     val sortedTextures = remember(textures) {
         val (custom, default) = textures.partition { it.isCustomName }
-        // Sort custom names alphabetically, and auto textures by their numeric index
         custom.sortedBy { it.name.lowercase() } + default.sortedWith(
             compareBy<Texture> { it.autoIndex ?: Int.MAX_VALUE }
                 .thenBy { it.name }
@@ -105,7 +109,8 @@ fun TextureCaptureScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -152,7 +157,16 @@ fun TextureCaptureScreen(
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Button(
-                                onClick = { viewModel.addAllDetectedTextures(mediaId) },
+                                onClick = { 
+                                    val added = viewModel.addAllDetectedTextures(mediaId)
+                                    scope.launch {
+                                        if (added > 0) {
+                                            snackbarHostState.showSnackbar("Added $added textures")
+                                        } else {
+                                            snackbarHostState.showSnackbar("All textures already added")
+                                        }
+                                    }
+                                },
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                 modifier = Modifier.height(32.dp)
                             ) {
@@ -170,12 +184,19 @@ fun TextureCaptureScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(suggestions) { uri ->
+                            val isAlreadyAdded = remember(textures, uri) {
+                                textures.any { it.imageUri == uri.toString() }
+                            }
                             Box(
                                 modifier = Modifier
                                     .size(60.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .border(2.dp, MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
-                                    .clickable {
+                                    .border(
+                                        width = if (isAlreadyAdded) 3.dp else 1.dp,
+                                        color = if (isAlreadyAdded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable(!isAlreadyAdded) {
                                         val (name, index) = viewModel.getNextTextureInfo(mediaId, isAuto = true)
                                         val newTexture = Texture(
                                             imageUri = uri.toString(),
@@ -189,18 +210,31 @@ fun TextureCaptureScreen(
                                     model = uri,
                                     contentDescription = "Suggested Texture",
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillMaxSize().alpha(if (isAlreadyAdded) 0.6f else 1f)
                                 )
-                                Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier
-                                        .align(Alignment.Center)
-                                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                                        .padding(4.dp)
-                                        .size(16.dp)
-                                )
+                                if (isAlreadyAdded) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = "Added",
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier
+                                            .align(Alignment.Center)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                            .padding(2.dp)
+                                            .size(18.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier
+                                            .align(Alignment.Center)
+                                            .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                                            .padding(4.dp)
+                                            .size(16.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -212,7 +246,7 @@ fun TextureCaptureScreen(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp), // Increased height slightly to accommodate 2 lines of text
+                    .height(160.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -239,7 +273,6 @@ fun TextureCaptureScreen(
                         
                         Spacer(modifier = Modifier.height(12.dp))
                         
-                        // Texture Detection Count Stepper
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -378,17 +411,8 @@ fun TextureItem(
                         },
                         leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
                     )
-                    if (!texture.isCustomName) {
-                        // For auto textures, we might want to edit crop too if they are just suggestions
-                        DropdownMenuItem(
-                            text = { Text("Edit Crop") },
-                            onClick = {
-                                showMenu = false
-                                onEditCrop()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Crop, contentDescription = null) }
-                        )
-                    } else {
+                    // Disable Edit Crop for auto-generated textures (system-generated)
+                    if (texture.autoIndex == null) {
                         DropdownMenuItem(
                             text = { Text("Edit Crop") },
                             onClick = {

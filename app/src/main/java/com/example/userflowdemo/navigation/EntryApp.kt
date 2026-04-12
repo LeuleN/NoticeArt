@@ -192,6 +192,7 @@ fun EntryApp(
                     currentMediaId = mediaItem?.id
                     editingMediaIndex = draft?.media?.indexOf(mediaItem)
                     captureBackDestination = "newEntry"
+                    viewModel.resetTextureState()
                     currentScreen = "textureCapture"
                 },
                 onAddAudioFromFiles = { audioPicker.launch(arrayOf("audio/*")) },
@@ -250,6 +251,7 @@ fun EntryApp(
                         viewModel.addOrUpdateMediaItem(uri, emptyList(), emptyList(), mediaId = newId)
                     }
                     captureBackDestination = "imageMedia"
+                    viewModel.resetTextureState()
                     currentScreen = "textureCapture"
                 },
                 onBack = {

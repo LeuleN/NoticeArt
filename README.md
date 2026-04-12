@@ -296,7 +296,6 @@ Prototype → **Feature-complete, demo-ready**
 ### Remaining
 
 - Audio improvements
-- Export (PDF) polish
 - Final UI consistency pass
 
 ---
