@@ -52,6 +52,10 @@ NoticeArt solves this by providing a **media-first system** that allows users to
 ## Screenshots
 The following screenshots highlight key features and workflows of the application.
 
+The link to a visual walkthrough is below:
+https://www.figma.com/deck/KFeLh6YMML6aqtjyFQwXK4/walkthrough?node-id=1-94
+
+---
 ### Welcome Screen - Onboarding
 
 <img src="./screenshots/welcome_screen.png" width="200">
