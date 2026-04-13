@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -45,7 +46,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import java.io.File
 
@@ -204,19 +207,27 @@ fun RecordAudioScreen(
                         },
                         modifier = Modifier.size(180.dp)
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             Icon(
-                                Icons.Default.Mic,
-                                contentDescription = "Record",
-                                modifier = Modifier.size(72.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(72.dp)
                             )
-                            Spacer(modifier = Modifier.size(16.dp))
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
                             Text(
                                 text = if (isRecording) "TAP TO STOP" else "TAP TO RECORD",
-                                style = MaterialTheme.typography.headlineSmall,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
                             )
                         }
                     }
