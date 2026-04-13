@@ -51,57 +51,63 @@ NoticeArt solves this by providing a **media-first system** that allows users to
 
 ## Screenshots
 
+### Welcome Screen - Onboarding
+
+<img src="./screenshots/welcome_screen.png" width="200">
+
+---
+
 ### Home Screen — Entry Preview Grid
 
-![Home Screen](./screenshots/homescreen.png)
+<img src="./screenshots/homescreen.png" width="200">
 
 ---
 
 ### Entry Creation — New Draft
 
-![Home Screen](./screenshots/new_entry_complete.png)
+<img src="./screenshots/new_entry_complete.png" width="200">
 
 ---
 
 ### Adding Media — Image Selection
 
-![Add Media](./screenshots/capture_media.png)
+<img src="./screenshots/capture_media.png" width="200">
 
 ---
 
 ### Color Capture — Eyedropper + Palette
 
-![Color Capture](./screenshots/color_capture.png)
+<img src="./screenshots/color_capture.png" width="200">
 
 ---
 
 ### Texture Capture — Crop Interface
 
-![Texture Capture](./screenshots/texture_capture.png)
+<img src="./screenshots/texture_capture.png" width="200">
 
 ---
 
 ### Entry Detail — Full View
 
-![Entry Detail](./screenshots/entry_detail.png)
+<img src="./screenshots/entry_detail.png" width="200">
 
 ---
 
 ### Image Detail — Color & Texture Preview
 
-![Image Detail](./screenshots/entry_detail_image_preview.png)
+<img src="./screenshots/entry_detail_image_preview.png" width="200">
 
 ---
 
 ### Filtering & Favorites
 
-![Filter Favorites](./screenshots/filter_favorite_option.png)
+<img src="./screenshots/filter_favorite_option.png" width="200">
 
 ---
 
 ### Export to PDF
 
-![Export PDF](./screenshots/export_pdf.png)
+<img src="./screenshots/export_pdf.png" width="200">
 
 ---
 
