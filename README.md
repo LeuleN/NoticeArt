@@ -50,6 +50,7 @@ NoticeArt solves this by providing a **media-first system** that allows users to
 ---
 
 ## Screenshots
+The following screenshots highlight key features and workflows of the application.
 
 ### Welcome Screen - Onboarding
 
