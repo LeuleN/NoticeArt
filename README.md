@@ -51,7 +51,7 @@ NoticeArt solves this by providing a **media-first system** that allows users to
 
 
 # Official Walkthrough - Notice Art
-<img src="./screenshots/noticeart_walkthrough.png" width="200">
+<img src="./screenshots/noticeart_walkthrough.png">
 
 ## Screenshots
 The following screenshots highlight key features and workflows of the application.
