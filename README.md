@@ -1,18 +1,107 @@
-# UserFlowDemo
+# NoticeArt
 
-Prototype implementation for the **“Art of Noticing” (NoticeArt)** mobile application user flows.
+Final implementation of the **“Art of Noticing” (NoticeArt)** mobile application.
 
 ---
 
 ## Overview
 
-This repository contains development work for implementing core user flows using Android Jetpack Compose and modern Android architecture.
+NoticeArt is a mobile creative diary system designed to help users capture, organize, and revisit visual observations through multiple forms of media.
 
-The application is a creative diary system built around the interaction model:
+The application is built around the interaction model:
 
 **Notice → Capture → Reflect → Save → Revisit**
 
-Users create flexible entries that support multiple forms of media while maintaining strong data safety through a draft-based workflow.
+Users create flexible entries that support images, colors, textures, and audio while maintaining strong data safety through a draft-based workflow.
+
+---
+
+## Problem
+
+Creative observations are often lost because traditional tools (notes apps, camera apps) do not support structured capture of visual elements like colors, textures, and context together.
+
+NoticeArt solves this by providing a **media-first system** that allows users to capture and organize visual inspiration in a single, consistent workflow.
+
+---
+
+## Key Features
+
+- Draft-first entry system (prevents data loss)
+- Multi-image support per entry (no overwrite)
+- Per-image color extraction (manual + automatic)
+- Texture capture and OpenCV-based detection
+- Audio recording and playback support
+- Edit-safe workflow (no accidental overwrites)
+- Delete with undo recovery
+- Entry filtering and favorites
+- Export to structured PDF
+
+---
+
+## Setup Instructions
+
+1. Clone the repository
+2. Open the project in Android Studio
+3. Sync Gradle
+4. Run on emulator or physical device
+
+**Recommended:** Android 11+ for best performance
+
+---
+
+## Screenshots
+
+### Home Screen — Entry Preview Grid
+
+![Home Screen](./screenshots/homescreen.png)
+
+---
+
+### Entry Creation — New Draft
+
+![Home Screen](./screenshots/new_entry_complete.png)
+
+---
+
+### Adding Media — Image Selection
+
+![Add Media](./screenshots/capture_media.png)
+
+---
+
+### Color Capture — Eyedropper + Palette
+
+![Color Capture](./screenshots/color_capture.png)
+
+---
+
+### Texture Capture — Crop Interface
+
+![Texture Capture](./screenshots/texture_capture.png)
+
+---
+
+### Entry Detail — Full View
+
+![Entry Detail](./screenshots/entry_detail.png)
+
+---
+
+### Image Detail — Color & Texture Preview
+
+![Image Detail](./screenshots/entry_detail_image_preview.png)
+
+---
+
+### Filtering & Favorites
+
+![Filter Favorites](./screenshots/filter_favorite_option.png)
+
+---
+
+### Export to PDF
+
+![Export PDF](./screenshots/export_pdf.png)
 
 ---
 
@@ -30,8 +119,6 @@ Users create flexible entries that support multiple forms of media while maintai
 
 ### Color Capture & Suggestion System
 
-The app supports both **manual color picking** and **automatic color palette generation**.
-
 #### Manual (Eyedropper)
 
 - Tap-based pixel sampling
@@ -42,76 +129,49 @@ The app supports both **manual color picking** and **automatic color palette gen
 
 #### Automatic (Palette API)
 
-- Uses Android Palette API to analyze image bitmap
-- Performs **color clustering + frequency analysis**
-- Identifies most visually dominant colors
-- Returns top N colors (adjustable range)
+- Uses Android Palette API
+- Color clustering + frequency analysis
+- Returns dominant colors (adjustable count)
 
-Behavior:
-
-- Colors are ranked by **population (pixel dominance)**
-- Produces a balanced palette (not random pixels)
-- Slight variation from manual picks is expected (cluster vs exact pixel)
-
-Result:
-
-- Fast, on-device color extraction (no API/network)
-- Consistent and deterministic output
-- User can refine by adding/removing colors manually
+**Behavior:**
+- Ranked by population (pixel dominance)
+- Balanced palette
+- Slight variation from manual picks expected
 
 ---
 
 ### Texture Capture & Suggestion System
 
-The app supports **manual texture cropping** and **automatic texture detection**.
-
 #### Manual Texture Crop
 
-- Square crop (enforced for consistency)
-- Gesture-based interaction:
-    - Drag to move
-    - Resize via corners
+- Square crop (enforced)
+- Drag + resize interaction
 - Saved as user-defined texture
 
 #### Automatic Texture Detection (OpenCV)
 
-- Converts image to grayscale
-- Applies **Laplacian filter (edge detection)**
-- Computes **variance scores** to measure texture intensity
+- Grayscale conversion
+- Laplacian edge detection
+- Variance scoring
 
-Detection Process:
+**Detection Process:**
 
 1. Image divided into grid regions
-2. Each region scored based on texture detail
-3. Regions categorized:
-    - High detail (edges, patterns)
-    - Medium detail
-    - Low detail (gradients, lighting)
-4. Spatial filtering prevents clustering (no duplicates in same area)
-5. Top N regions selected (adjustable 4–15)
-
-Behavior:
-
-- Produces **visually diverse texture samples**
-- Avoids redundant or overlapping selections
-- Balanced representation of the image
+2. Regions scored by detail level
+3. Spatial filtering prevents clustering
+4. Top regions selected
 
 ---
 
 ### Media Behavior
 
-- Media is confirmed → then locked (immutable)
-- Users cannot replace images directly
+- Media is confirmed → then locked
+- Images cannot be replaced directly
 
 Allowed actions:
 - Remove media
 - Extract colors
 - Extract textures
-
-Inline actions:
-- Extract Colors
-- Extract Textures
-- Remove
 
 ---
 
@@ -120,32 +180,26 @@ Inline actions:
 ### Implementation includes:
 
 - Entry detail screen with:
-    - Images
-    - Color palettes
-    - Texture previews
-    - Observations
+  - Images
+  - Color palettes
+  - Texture previews
+  - Observations
+  - Audio
 
-- Edit flow using draft reuse:
-    - Entry → copy → draft → update (no mutation)
+- Edit flow:
+  - Entry → draft copy → update
 
 - Change detection:
-    - Prevents accidental loss
-    - Triggers discard dialog only when needed
+  - Prevents accidental loss
+  - Shows discard dialog when needed
 
-- Auto-save behavior:
-    - Lifecycle-aware
-    - No duplicate entries
-    - No draft pollution during editing
+- Auto-save:
+  - Lifecycle-aware
+  - No duplicate entries
 
 - Delete system:
-    - Confirmation dialog
-    - Undo via Snackbar
-
-### Navigation behavior
-
-- Edit → Save → returns to detail
-- Edit → Back → discard dialog → returns to detail
-- New Entry → Back → draft handling logic
+  - Confirmation dialog
+  - Undo via Snackbar
 
 ---
 
@@ -154,14 +208,13 @@ Inline actions:
 - Draft auto-created on “+”
 - Persisted in Room
 - Survives app restarts
-- Only one active draft
 
-### Safety behavior
+### Safety Behavior
 
-- Empty draft → auto-delete
-- Non-empty draft → discard confirmation
-- Lifecycle interruption → auto-save
-- Reopen app → draft restored
+- Empty draft → auto-deleted
+- Modified draft → discard confirmation
+- Auto-save on interruption
+- Draft restored on reopen
 
 ---
 
@@ -171,77 +224,42 @@ Inline actions:
 
 - Multiple images per entry (`List<String>` URIs)
 - Append-only (no overwrite)
-- Works across drafts, edits, and saved entries
 
-### Data Integrity (Critical)
+### Data Integrity
 
-- Colors and textures are tied to their source image
+- Colors and textures tied to source image
 - No cross-image leakage
-- Removing an image removes:
-    - Associated colors
-    - Associated textures
-
-### Media Grid
-
-```
-[ + ] [ image1 ]
-[ image2 ] [ image3 ]
-```
-
-- “+” always top-left
-- Dynamic expansion
-- Immediate preview
+- Removing image removes associated data
 
 ---
 
-## Color & Texture Preview
+## Audio System
 
-### Entry View
+- Record and attach audio to entries
+- Playback supported in entry detail
 
-- Segmented preview strips (not blended)
-- Vertical + horizontal dividers
-- Up to 3 preview items shown
-
-### Detail View
-
-- Full palette via bottom sheet
-- Horizontal scrolling
-- Clean separation between preview and full view
+**Limitations:**
+- Single playback at a time
+- Pause resets playback
 
 ---
 
-## UX Features
-
-- Draft persistence across restarts
-- Auto-save on lifecycle changes
-- Discard confirmation (only when needed)
-- Delete confirmation + undo
-- Inline media actions (no extra navigation)
-- Persistent scroll behavior
-- Grid-based home layout (2 columns)
-
-Entry cards display:
-- Title
-- Date
-- Media indicators
-
----
-
-## Additional Features (Recent Updates)
+## Additional Features
 
 ### Entry Filtering & Favorites
 
-- Entries can be filtered by:
-    - Alphabetical order
-    - Favorites
+- Filter by:
+  - Alphabetical
+  - Favorites
 
 - Favorite system:
-    - Toggle heart icon on entry detail screen
-    - Favorited entries can be filtered and prioritized
+  - Toggle heart icon
+  - Prioritized filtering
 
 ---
 
 ## Architecture
+
 
 ```
 UI (Jetpack Compose)
@@ -256,7 +274,7 @@ UI (Jetpack Compose)
 - Per-image media modeling
 - State-driven UI
 - Offline-first persistence
-- Clear separation of UI and data layers
+- Clear separation of concerns
 
 ---
 
@@ -274,41 +292,48 @@ UI (Jetpack Compose)
 
 ## Current Status
 
-Prototype → **Feature-complete, demo-ready**
+**Final — Fully implemented, stable, and demo-ready**
 
 ### Completed
 
-- Full entry lifecycle (create, edit, delete, undo)
-- Draft system with safety
+- Full entry lifecycle
+- Draft system
 - Multi-image support
 - Per-image color system
-- Texture detection + crop system
+- Texture detection + crop
+- Audio integration
 - Media grid with preview
-- Inline media actions
 - Entry filtering + favorites
+- Export to PDF
 - Data integrity guarantees
 
-### In Progress
+---
 
-- Media UX polish
-- Persistence edge cases
+## Accepted Limitations
 
-### Remaining
+- Texture duplicates may occur
+- Auto textures not editable
+- Detection resets between sessions
+- No cloud sync (offline-first)
 
-- Audio improvements
-- Final UI consistency pass
+---
+
+## Team
+
+- Leule Negatu
+- Timothy Kim
+- Sara Trufant
+- Shirin Mohammadian
 
 ---
 
 ## Summary
 
-The application supports a complete creative workflow:
+NoticeArt is a fully implemented creative capture system that supports:
 
-- Multi-modal capture (images, colors, textures)
-- Smart palette + texture suggestion systems
-- Strong data integrity (no mismatched media)
-- Draft-based safety system (no data loss)
-- Scalable architecture
-- Real-time visual feedback
+- Multi-modal media capture (images, colors, textures, audio)
+- Intelligent color and texture suggestions
+- Strong data safety through a draft-first workflow
+- Consistent behavior across all screens
 
-The system has evolved into a fully interactive creative capture tool aligned with its core design philosophy.
+The system demonstrates a complete, stable, and user-safe workflow from capture to export.
