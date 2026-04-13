@@ -1,26 +1,34 @@
 package com.example.userflowdemo.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.userflowdemo.R
 
 @Composable
 fun WelcomeScreen(
     onNameSubmitted: (String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
     val maxChar = 20
-    val isNameEmpty = name.isBlank()
+    
+    // Derived states
+    val isNameEmpty = name.isEmpty()
+    val isNameBlank = name.isBlank()
 
     Box(
         modifier = Modifier
@@ -30,11 +38,12 @@ fun WelcomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 32.dp),
+                .padding(horizontal = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(64.dp))
             
+            // Reverted "WELCOME TO" style to original bold/headlineLarge
             Text(
                 text = "WELCOME TO",
                 style = MaterialTheme.typography.headlineLarge,
@@ -42,51 +51,69 @@ fun WelcomeScreen(
                 letterSpacing = 2.sp
             )
             
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "N",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Light,
-                    fontSize = 60.sp
-                )
-                Text(
-                    text = "👁",
-                    fontSize = 50.sp,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                Text(
-                    text = "ticeArt",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Light,
-                    fontSize = 60.sp
-                )
-            }
+            // NoticeArt logo (Replaced with Image)
+            Image(
+                painter = painterResource(id = R.drawable.noticeart_logo),
+                contentDescription = "NoticeArt Logo",
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .height(80.dp)
+                    .fillMaxWidth(),
+                alignment = Alignment.Center
+            )
 
-            Spacer(modifier = Modifier.weight(1f))
+            // Tagline
+            Text(
+                text = "A space for your observations",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.Gray.copy(alpha = 0.8f),
+                modifier = Modifier.padding(top = 16.dp)
+            )
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(modifier = Modifier.weight(1.2f))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "What should we call you?",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.DarkGray
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
                 TextField(
                     value = name,
                     onValueChange = { 
-                        // Changed to trim to match test expectations and common UX
-                        name = it.take(maxChar)
+                        if (it.length <= maxChar) {
+                            name = it
+                            if (showError && it.isNotBlank()) showError = false
+                        }
                     },
                     placeholder = { 
                         Text(
                             "Enter your name", 
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium)
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                color = Color.LightGray,
+                                fontWeight = FontWeight.Normal
+                            )
                         ) 
                     },
                     modifier = Modifier.fillMaxWidth(),
+                    isError = showError,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
                         disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                        cursorColor = MaterialTheme.colorScheme.primary
+                        errorContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color(0xFF7E9AFE),
+                        unfocusedIndicatorColor = Color.Gray.copy(alpha = 0.6f),
+                        errorIndicatorColor = MaterialTheme.colorScheme.error,
+                        cursorColor = Color(0xFF7E9AFE)
                     ),
                     textStyle = MaterialTheme.typography.headlineSmall.copy(
                         textAlign = TextAlign.Center,
@@ -95,46 +122,68 @@ fun WelcomeScreen(
                     singleLine = true
                 )
                 
-                if (isNameEmpty) {
-                    @Suppress("UNUSED_VARIABLE")
-                    val _unusedHint = "Please enter your name"
-                    Text(
-                        text = "Please enter your name",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    if (showError) {
+                        Text(
+                            text = "Please enter your name",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        )
+                    }
+                    
                     Text(
                         text = "${name.length} / $maxChar",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontSize = 11.sp,
+                            color = Color(0xFF6B6B6B)
+                        ),
+                        modifier = Modifier.align(Alignment.Center)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
-            TextButton(
+            Button(
                 onClick = {
-                    if (!isNameEmpty) {
+                    if (isNameBlank) {
+                        showError = true
+                    } else {
                         onNameSubmitted(name.trim())
                     }
                 },
                 enabled = !isNameEmpty,
-                modifier = Modifier.padding(bottom = 120.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF7E9AFE),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFFF0F0F0),
+                    disabledContentColor = Color.LightGray
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 2.dp,
+                    disabledElevation = 0.dp
+                )
             ) {
                 Text(
-                    text = "NEXT",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isNameEmpty) Color.Gray else MaterialTheme.colorScheme.primary
+                    text = "Next",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
+            
+            Spacer(modifier = Modifier.height(110.dp))
         }
 
-        // Wave decoration at bottom
         WaveDecoration(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -146,9 +195,6 @@ fun WelcomeScreen(
 
 @Composable
 fun WaveDecoration(modifier: Modifier = Modifier) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
-
     val waveShape1 = GenericShape { size, _ ->
         moveTo(0f, size.height * 0.7f)
         cubicTo(
