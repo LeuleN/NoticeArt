@@ -49,11 +49,12 @@ NoticeArt solves this by providing a **media-first system** that allows users to
 
 ---
 
+
+# Official Walkthrough - Notice Art
+<img src="./screenshots/noticeart_walkthrough.png" width="200">
+
 ## Screenshots
 The following screenshots highlight key features and workflows of the application.
-
-The link to a visual walkthrough is below:
-https://www.figma.com/deck/KFeLh6YMML6aqtjyFQwXK4/walkthrough?node-id=1-94
 
 ---
 ### Welcome Screen - Onboarding
