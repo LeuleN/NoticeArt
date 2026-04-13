@@ -101,8 +101,13 @@ fun TextureCaptureScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Texture Capture") },
+            CenterAlignedTopAppBar(
+                title = { 
+                    Text(
+                        "Texture Capture",
+                        fontWeight = FontWeight.Bold
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -273,6 +278,7 @@ fun TextureCaptureScreen(
                         
                         Spacer(modifier = Modifier.height(12.dp))
                         
+                        // Color Count Stepper
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier

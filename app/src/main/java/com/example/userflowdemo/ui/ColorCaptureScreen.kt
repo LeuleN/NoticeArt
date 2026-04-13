@@ -126,8 +126,13 @@ fun ColorCaptureScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Color Capture") },
+            CenterAlignedTopAppBar(
+                title = { 
+                    Text(
+                        "Color Capture",
+                        fontWeight = FontWeight.Bold
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
