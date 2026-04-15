@@ -47,6 +47,7 @@ class Converters {
                                 imageUri = texObj.optString("uri").takeIf { it.isNotEmpty() },
                                 name = texObj.getString("name"),
                                 isCustomName = texObj.optBoolean("isCustomName", false),
+                                autoIndex = if (texObj.has("autoIndex")) texObj.getInt("autoIndex") else null,
                                 cropRect = cropRect
                             )
                         )
@@ -87,6 +88,7 @@ class Converters {
                 texObj.put("uri", tex.imageUri ?: "")
                 texObj.put("name", tex.name)
                 texObj.put("isCustomName", tex.isCustomName)
+                tex.autoIndex?.let { texObj.put("autoIndex", it) }
                 
                 tex.cropRect?.let { rect ->
                     val cropObj = JSONObject()
