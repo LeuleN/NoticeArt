@@ -338,7 +338,12 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                     _draft.update { if (it != null && it.id == 0L) it.copy(id = newId) else it }
                 } else {
                     val idToUse = if (entry.id == 0L && existingDraft != null) existingDraft.id else entry.id
-                    val toUpdate = entry.copy(id = idToUse)
+                    val titleToSave = if (isEditing && entry.title.isBlank()) {
+                        originalEntrySnapshot?.title ?: entry.title
+                    } else {
+                        entry.title
+                    }
+                    val toUpdate = entry.copy(id = idToUse, title = titleToSave)
                     repository.update(toUpdate)
                     if (entry.id == 0L && existingDraft != null) {
                         _draft.update { if (it != null && it.id == 0L) it.copy(id = idToUse) else it }
@@ -578,7 +583,13 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _draft.value?.let { currentDraft ->
                 if (isEditing) {
+                    val titleToSave = if (currentDraft.title.isBlank()) {
+                        originalEntrySnapshot?.title ?: currentDraft.title
+                    } else {
+                        currentDraft.title
+                    }
                     val updated = currentDraft.copy(
+                        title = titleToSave,
                         isDraft = false,
                         timestamp = System.currentTimeMillis()
                     )
@@ -606,7 +617,14 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
             _draft.value?.let { currentDraft ->
                 if (com.example.userflowdemo.utils.isDraftEmpty(currentDraft) && !isEditing) return@launch
 
+                val titleToSave = if (isEditing && currentDraft.title.isBlank()) {
+                    originalEntrySnapshot?.title ?: currentDraft.title
+                } else {
+                    currentDraft.title
+                }
+
                 val published = currentDraft.copy(
+                    title = titleToSave,
                     isDraft = false,
                     timestamp = System.currentTimeMillis()
                 )
