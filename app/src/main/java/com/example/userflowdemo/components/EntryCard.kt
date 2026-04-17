@@ -125,6 +125,23 @@ fun EntryCard(
                                 .align(Alignment.TopStart)
                         )
                     }
+
+                    if (entry.media.size > 1) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                        ) {
+                            Text(
+                                text = entry.media.size.toString(),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
 
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -143,12 +160,22 @@ fun EntryCard(
                         )
 
                         if (entry.audioUris.isNotEmpty()) {
-                            Icon(
-                                imageVector = Icons.Default.Mic,
-                                contentDescription = "Has audio",
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = entry.audioUris.size.toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = "Has audio",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
 
