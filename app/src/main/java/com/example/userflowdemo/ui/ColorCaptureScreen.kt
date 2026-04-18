@@ -4,6 +4,9 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -47,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.AiState
 import com.example.userflowdemo.EntryViewModel
@@ -519,16 +523,28 @@ fun MagnifierOverlay(
     val magnifierSizePx = with(density) { magnifierSizeDp.toPx() }
     
     // Threshold to flip the magnifier below the finger (if too close to the top edge)
-    val flipThresholdPx = magnifierSizePx / 2 + with(density) { 20.dp.toPx() }
+    val flipThresholdPx = magnifierSizePx / 2 + with(density) { 40.dp.toPx() }
     val isNearTop = offset.y < flipThresholdPx
 
     // Position magnifier above or below the finger with a consistent gap
-    val verticalGapPx = with(density) { 120.dp.toPx() }
-    val yOffsetPx = if (isNearTop) verticalGapPx else -verticalGapPx
+    // Increased gap to 140dp to ensure it never overlaps the user's finger
+    val verticalGapPx = with(density) { 140.dp.toPx() }
+    val targetYOffset = if (isNearTop) verticalGapPx else -verticalGapPx
+    
+    // Animate the vertical offset for a smooth flip transition
+    val animatedYOffset by animateFloatAsState(
+        targetValue = targetYOffset,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "MagnifierFlip"
+    )
     
     // Final center position for the magnifier, clamped to stay within container bounds
+    // Using roundToInt for smoother sub-pixel positioning
     val centerX = offset.x.coerceIn(magnifierSizePx / 2, containerSize.width.toFloat() - magnifierSizePx / 2)
-    val centerY = (offset.y + yOffsetPx).coerceIn(magnifierSizePx / 2, containerSize.height.toFloat() - magnifierSizePx / 2)
+    val centerY = (offset.y + animatedYOffset).coerceIn(magnifierSizePx / 2, containerSize.height.toFloat() - magnifierSizePx / 2)
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -537,8 +553,8 @@ fun MagnifierOverlay(
             modifier = Modifier
                 .offset {
                     IntOffset(
-                        (centerX - magnifierSizePx / 2).toInt(),
-                        (centerY - magnifierSizePx / 2).toInt()
+                        (centerX - magnifierSizePx / 2).roundToInt(),
+                        (centerY - magnifierSizePx / 2).roundToInt()
                     )
                 }
                 .size(magnifierSizeDp)
@@ -583,18 +599,18 @@ fun MagnifierOverlay(
                 )
                 
                 // Draw center crosshair
-                val rectSize = 10f
+                val rectSize = 20f // Increased for better visibility/targeting
                 drawRect(
                     color = Color.White,
                     topLeft = Offset(this.center.x - rectSize/2, this.center.y - rectSize/2),
                     size = Size(rectSize, rectSize),
-                    style = Stroke(width = 2f)
+                    style = Stroke(width = 2.5f) // Slightly thicker white border
                 )
                 drawRect(
                     color = Color.Black,
-                    topLeft = Offset(this.center.x - rectSize/2 + 1f, this.center.y - rectSize/2 + 1f),
-                    size = Size(rectSize - 2f, rectSize - 2f),
-                    style = Stroke(width = 1f)
+                    topLeft = Offset(this.center.x - rectSize/2 + 1.25f, this.center.y - rectSize/2 + 1.25f),
+                    size = Size(rectSize - 2.5f, rectSize - 2.5f),
+                    style = Stroke(width = 1.5f) // Slightly thicker black inner
                 )
             }
             
