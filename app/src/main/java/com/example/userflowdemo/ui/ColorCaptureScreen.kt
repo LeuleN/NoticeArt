@@ -519,17 +519,18 @@ fun MagnifierOverlay(
     if (bitmap == null || offset == Offset.Unspecified || currentColor == null) return
 
     val density = LocalDensity.current
-    val magnifierSizeDp = 100.dp // Reduced by ~33% from 150dp
+    val magnifierSizeDp = 100.dp 
     val magnifierSizePx = with(density) { magnifierSizeDp.toPx() }
     
-    // Threshold to flip the magnifier below the finger (if too close to the top edge)
-    val flipThresholdPx = magnifierSizePx / 2 + with(density) { 30.dp.toPx() }
-    val isNearTop = offset.y < flipThresholdPx
+    // Determine position based on vertical zone (Top Half vs Bottom Half)
+    // crossing the midpoint (containerSize.height / 2) triggers the flip
+    val isTopHalf = offset.y < containerSize.height / 2f
 
     // Position magnifier above or below the finger with a consistent gap
-    // Adjusted gap to maintain proportional distance with the smaller size
+    // Top Half -> Magnifier BELOW finger (to keep it on screen)
+    // Bottom Half -> Magnifier ABOVE finger (default)
     val verticalGapPx = with(density) { 100.dp.toPx() }
-    val targetYOffset = if (isNearTop) verticalGapPx else -verticalGapPx
+    val targetYOffset = if (isTopHalf) verticalGapPx else -verticalGapPx
     
     // Animate the vertical offset for a smooth flip transition
     val animatedYOffset by animateFloatAsState(
@@ -542,7 +543,6 @@ fun MagnifierOverlay(
     )
     
     // Final center position for the magnifier, clamped to stay within container bounds
-    // Using roundToInt for smoother sub-pixel positioning
     val centerX = offset.x.coerceIn(magnifierSizePx / 2, containerSize.width.toFloat() - magnifierSizePx / 2)
     val centerY = (offset.y + animatedYOffset).coerceIn(magnifierSizePx / 2, containerSize.height.toFloat() - magnifierSizePx / 2)
 
