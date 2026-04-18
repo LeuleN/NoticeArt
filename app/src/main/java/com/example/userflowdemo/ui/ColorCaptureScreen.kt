@@ -518,9 +518,17 @@ fun MagnifierOverlay(
     val magnifierSizeDp = 150.dp
     val magnifierSizePx = with(density) { magnifierSizeDp.toPx() }
     
-    // Position magnifier above the finger with some offset
-    val yOffsetPx = with(density) { -120.dp.toPx() }
-    val magnifierCenter = offset + Offset(0f, yOffsetPx)
+    // Threshold to flip the magnifier below the finger (if too close to the top edge)
+    val flipThresholdPx = magnifierSizePx / 2 + with(density) { 20.dp.toPx() }
+    val isNearTop = offset.y < flipThresholdPx
+
+    // Position magnifier above or below the finger with a consistent gap
+    val verticalGapPx = with(density) { 120.dp.toPx() }
+    val yOffsetPx = if (isNearTop) verticalGapPx else -verticalGapPx
+    
+    // Final center position for the magnifier, clamped to stay within container bounds
+    val centerX = offset.x.coerceIn(magnifierSizePx / 2, containerSize.width.toFloat() - magnifierSizePx / 2)
+    val centerY = (offset.y + yOffsetPx).coerceIn(magnifierSizePx / 2, containerSize.height.toFloat() - magnifierSizePx / 2)
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -529,8 +537,8 @@ fun MagnifierOverlay(
             modifier = Modifier
                 .offset {
                     IntOffset(
-                        (magnifierCenter.x - magnifierSizePx / 2).toInt(),
-                        (magnifierCenter.y - magnifierSizePx / 2).toInt()
+                        (centerX - magnifierSizePx / 2).toInt(),
+                        (centerY - magnifierSizePx / 2).toInt()
                     )
                 }
                 .size(magnifierSizeDp)
