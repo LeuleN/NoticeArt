@@ -4,10 +4,14 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -28,11 +32,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.AiState
@@ -149,12 +162,18 @@ fun ColorCaptureScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            var magnifierOffset by remember { mutableStateOf(Offset.Unspecified) }
+            var magnifierColor by remember { mutableStateOf<Int?>(null) }
+            var showMagnifier by remember { mutableStateOf(false) }
+            var containerSize by remember { mutableStateOf(IntSize.Zero) }
+
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .onGloballyPositioned { containerSize = it.size },
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -164,43 +183,71 @@ fun ColorCaptureScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .pointerInput(imageUri, isEyedropperActive) {
-                            if (isEyedropperActive) {
-                                detectTapGestures { offset ->
+                            if (!isEyedropperActive) return@pointerInput
+                            awaitEachGesture {
+                                val down = awaitFirstDown()
+                                showMagnifier = true
+                                
+                                fun updateAt(offset: Offset) {
+                                    magnifierOffset = offset
                                     bitmap?.let { b ->
-                                        try {
-                                            val viewWidth = size.width.toFloat()
-                                            val viewHeight = size.height.toFloat()
-                                            val bmpWidth = b.width.toFloat()
-                                            val bmpHeight = b.height.toFloat()
-
-                                            val scale = Math.min(viewWidth / bmpWidth, viewHeight / bmpHeight)
-                                            val scaledWidth = bmpWidth * scale
-                                            val scaledHeight = bmpHeight * scale
-
-                                            val left = (viewWidth - scaledWidth) / 2f
-                                            val top = (viewHeight - scaledHeight) / 2f
-
-                                            if (offset.x in left..(left + scaledWidth) && offset.y in top..(top + scaledHeight)) {
-                                                val bitmapX = ((offset.x - left) / scale).toInt().coerceIn(0, b.width - 1)
-                                                val bitmapY = ((offset.y - top) / scale).toInt().coerceIn(0, b.height - 1)
-                                                val pixel = b.getPixel(bitmapX, bitmapY)
-                                                
-                                                if (latestCapturedColors.contains(pixel)) {
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar("Color already captured")
-                                                    }
-                                                } else {
-                                                    // CRITICAL: Use latestCapturedColors (the state-backed value) 
-                                                    // to ensure we append to the most recent version of the list.
-                                                    viewModel.updateColors(imageUri, latestCapturedColors + pixel, mediaIndex, mediaId)
-                                                }
-                                            }
-                                        } catch (e: Exception) {}
+                                        val viewWidth = size.width.toFloat()
+                                        val viewHeight = size.height.toFloat()
+                                        val bmpWidth = b.width.toFloat()
+                                        val bmpHeight = b.height.toFloat()
+                                        val scale = Math.min(viewWidth / bmpWidth, viewHeight / bmpHeight)
+                                        val left = (viewWidth - bmpWidth * scale) / 2f
+                                        val top = (viewHeight - bmpHeight * scale) / 2f
+                                        
+                                        if (offset.x in left..(left + bmpWidth * scale) && 
+                                            offset.y in top..(top + bmpHeight * scale)) {
+                                            val bx = ((offset.x - left) / scale).toInt().coerceIn(0, b.width - 1)
+                                            val by = ((offset.y - top) / scale).toInt().coerceIn(0, b.height - 1)
+                                            magnifierColor = b.getPixel(bx, by)
+                                        } else {
+                                            magnifierColor = null
+                                        }
                                     }
                                 }
+                                
+                                updateAt(down.position)
+                                
+                                do {
+                                    val event = awaitPointerEvent()
+                                    event.changes.forEach { change ->
+                                        if (change.pressed) {
+                                            updateAt(change.position)
+                                            change.consume()
+                                        }
+                                    }
+                                } while (event.changes.any { it.pressed })
+                                
+                                // Released
+                                magnifierColor?.let { color ->
+                                    if (latestCapturedColors.contains(color)) {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Color already captured")
+                                        }
+                                    } else {
+                                        viewModel.updateColors(imageUri, latestCapturedColors + color, mediaIndex, mediaId)
+                                    }
+                                }
+                                
+                                showMagnifier = false
+                                magnifierOffset = Offset.Unspecified
+                                magnifierColor = null
                             }
                         }
                 )
+
+                if (showMagnifier) {
+                    MagnifierOverlay(
+                        offset = magnifierOffset,
+                        containerSize = containerSize,
+                        bitmap = bitmap,
+                        currentColor = magnifierColor
+                    )
+                }
 
                 if (aiState is AiState.Loading) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -456,4 +503,123 @@ fun ColorCaptureScreen(
 // Extension to calculate luminance for adaptive icon tinting
 private fun Color.luminance(): Float {
     return 0.299f * red + 0.587f * green + 0.114f * blue
+}
+
+@Composable
+fun MagnifierOverlay(
+    offset: Offset,
+    containerSize: IntSize,
+    bitmap: android.graphics.Bitmap?,
+    currentColor: Int?
+) {
+    if (bitmap == null || offset == Offset.Unspecified || currentColor == null) return
+
+    val density = LocalDensity.current
+    val magnifierSizeDp = 150.dp
+    val magnifierSizePx = with(density) { magnifierSizeDp.toPx() }
+    
+    // Position magnifier above the finger with some offset
+    val yOffsetPx = with(density) { -120.dp.toPx() }
+    val magnifierCenter = offset + Offset(0f, yOffsetPx)
+
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier
+                .offset {
+                    IntOffset(
+                        (magnifierCenter.x - magnifierSizePx / 2).toInt(),
+                        (magnifierCenter.y - magnifierSizePx / 2).toInt()
+                    )
+                }
+                .size(magnifierSizeDp)
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .border(2.dp, Color.White, CircleShape)
+                    .background(Color.Black)
+            ) {
+                val bmpWidth = bitmap.width.toFloat()
+                val bmpHeight = bitmap.height.toFloat()
+                val viewWidth = containerSize.width.toFloat()
+                val viewHeight = containerSize.height.toFloat()
+
+                val scale = Math.min(viewWidth / bmpWidth, viewHeight / bmpHeight)
+                val left = (viewWidth - bmpWidth * scale) / 2f
+                val top = (viewHeight - bmpHeight * scale) / 2f
+
+                val bitmapX = (offset.x - left) / scale
+                val bitmapY = (offset.y - top) / scale
+
+                val zoom = 6f
+                val sourceSizePx = magnifierSizePx / (scale * zoom)
+                
+                val srcRectLeft = (bitmapX - sourceSizePx / 2).toInt()
+                val srcRectTop = (bitmapY - sourceSizePx / 2).toInt()
+                val srcRectSize = sourceSizePx.toInt()
+
+                // Clamp to bitmap bounds
+                val finalSrcLeft = srcRectLeft.coerceIn(0, (bitmap.width - srcRectSize).coerceAtLeast(0))
+                val finalSrcTop = srcRectTop.coerceIn(0, (bitmap.height - srcRectSize).coerceAtLeast(0))
+                val finalSrcSize = srcRectSize.coerceIn(1, bitmap.width.coerceAtMost(bitmap.height))
+
+                drawImage(
+                    image = bitmap.asImageBitmap(),
+                    srcOffset = IntOffset(finalSrcLeft, finalSrcTop),
+                    srcSize = IntSize(finalSrcSize, finalSrcSize),
+                    dstSize = IntSize(magnifierSizePx.toInt(), magnifierSizePx.toInt()),
+                    filterQuality = FilterQuality.None
+                )
+                
+                // Draw center crosshair
+                val rectSize = 10f
+                drawRect(
+                    color = Color.White,
+                    topLeft = Offset(this.center.x - rectSize/2, this.center.y - rectSize/2),
+                    size = Size(rectSize, rectSize),
+                    style = Stroke(width = 2f)
+                )
+                drawRect(
+                    color = Color.Black,
+                    topLeft = Offset(this.center.x - rectSize/2 + 1f, this.center.y - rectSize/2 + 1f),
+                    size = Size(rectSize - 2f, rectSize - 2f),
+                    style = Stroke(width = 1f)
+                )
+            }
+            
+            // Color tag at the bottom
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .offset(y = 10.dp),
+                shape = RoundedCornerShape(4.dp),
+                color = Color.White,
+                shadowElevation = 6.dp,
+                border = BorderStroke(1.dp, Color.LightGray)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .background(Color(currentColor))
+                            .border(1.dp, Color.Black.copy(alpha = 0.2f))
+                    )
+                    Text(
+                        text = "#%06X".format(0xFFFFFF and currentColor),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                    )
+                }
+            }
+        }
+    }
 }
