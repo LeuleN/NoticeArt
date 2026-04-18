@@ -519,16 +519,16 @@ fun MagnifierOverlay(
     if (bitmap == null || offset == Offset.Unspecified || currentColor == null) return
 
     val density = LocalDensity.current
-    val magnifierSizeDp = 150.dp
+    val magnifierSizeDp = 100.dp // Reduced by ~33% from 150dp
     val magnifierSizePx = with(density) { magnifierSizeDp.toPx() }
     
     // Threshold to flip the magnifier below the finger (if too close to the top edge)
-    val flipThresholdPx = magnifierSizePx / 2 + with(density) { 40.dp.toPx() }
+    val flipThresholdPx = magnifierSizePx / 2 + with(density) { 30.dp.toPx() }
     val isNearTop = offset.y < flipThresholdPx
 
     // Position magnifier above or below the finger with a consistent gap
-    // Increased gap to 140dp to ensure it never overlaps the user's finger
-    val verticalGapPx = with(density) { 140.dp.toPx() }
+    // Adjusted gap to maintain proportional distance with the smaller size
+    val verticalGapPx = with(density) { 100.dp.toPx() }
     val targetYOffset = if (isNearTop) verticalGapPx else -verticalGapPx
     
     // Animate the vertical offset for a smooth flip transition
@@ -578,7 +578,7 @@ fun MagnifierOverlay(
                 val bitmapX = (offset.x - left) / scale
                 val bitmapY = (offset.y - top) / scale
 
-                val zoom = 6f
+                val zoom = 8f // Increased slightly to compensate for smaller size
                 val sourceSizePx = magnifierSizePx / (scale * zoom)
                 
                 val srcRectLeft = (bitmapX - sourceSizePx / 2).toInt()
@@ -599,18 +599,18 @@ fun MagnifierOverlay(
                 )
                 
                 // Draw center crosshair
-                val rectSize = 20f // Increased for better visibility/targeting
+                val rectSize = 14f // Adjusted for smaller magnifier size
                 drawRect(
                     color = Color.White,
                     topLeft = Offset(this.center.x - rectSize/2, this.center.y - rectSize/2),
                     size = Size(rectSize, rectSize),
-                    style = Stroke(width = 2.5f) // Slightly thicker white border
+                    style = Stroke(width = 2f)
                 )
                 drawRect(
                     color = Color.Black,
-                    topLeft = Offset(this.center.x - rectSize/2 + 1.25f, this.center.y - rectSize/2 + 1.25f),
-                    size = Size(rectSize - 2.5f, rectSize - 2.5f),
-                    style = Stroke(width = 1.5f) // Slightly thicker black inner
+                    topLeft = Offset(this.center.x - rectSize/2 + 1f, this.center.y - rectSize/2 + 1f),
+                    size = Size(rectSize - 2f, rectSize - 2f),
+                    style = Stroke(width = 1f)
                 )
             }
             
