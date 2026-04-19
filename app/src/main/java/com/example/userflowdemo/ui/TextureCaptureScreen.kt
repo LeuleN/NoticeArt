@@ -112,6 +112,15 @@ fun TextureCaptureScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    IconButton(onClick = onConfirm) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Confirm",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             )
         },
@@ -121,7 +130,7 @@ fun TextureCaptureScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
@@ -144,7 +153,7 @@ fun TextureCaptureScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Detection Results / Suggestions
             if (textureState is TextureDetectionState.Success) {
@@ -185,7 +194,7 @@ fun TextureCaptureScreen(
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(suggestions) { uri ->
@@ -194,7 +203,7 @@ fun TextureCaptureScreen(
                             }
                             Box(
                                 modifier = Modifier
-                                    .size(60.dp)
+                                    .size(50.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .border(
                                         width = if (isAlreadyAdded) 3.dp else 1.dp,
@@ -226,7 +235,7 @@ fun TextureCaptureScreen(
                                             .align(Alignment.Center)
                                             .background(MaterialTheme.colorScheme.primary, CircleShape)
                                             .padding(2.dp)
-                                            .size(18.dp)
+                                            .size(16.dp)
                                     )
                                 } else {
                                     Icon(
@@ -237,7 +246,7 @@ fun TextureCaptureScreen(
                                             .align(Alignment.Center)
                                             .background(Color.Black.copy(alpha = 0.3f), CircleShape)
                                             .padding(4.dp)
-                                            .size(16.dp)
+                                            .size(14.dp)
                                     )
                                 }
                             }
@@ -246,12 +255,12 @@ fun TextureCaptureScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp),
+                    .height(140.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -276,7 +285,7 @@ fun TextureCaptureScreen(
                             }
                         }
                         
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         
                         // Color Count Stepper
                         Row(
@@ -288,27 +297,27 @@ fun TextureCaptureScreen(
                         ) {
                             IconButton(
                                 onClick = { viewModel.setTextureDetectionCount(textureDetectionCount - 1) },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(28.dp)
                             ) {
-                                Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                                Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(18.dp))
                             }
                             
                             Text(
                                 text = textureDetectionCount.toString(),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp)
                             )
                             
                             IconButton(
                                 onClick = { viewModel.setTextureDetectionCount(textureDetectionCount + 1) },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(28.dp)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = "Increase")
+                                Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(18.dp))
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         
                         TextButton(
                             onClick = { showClearConfirm = true },
@@ -327,7 +336,7 @@ fun TextureCaptureScreen(
                 item {
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
+                            .size(70.dp)
                             .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
                             .clickable { onAddTexture() },
                         contentAlignment = Alignment.Center
@@ -347,22 +356,6 @@ fun TextureCaptureScreen(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            IconButton(
-                onClick = onConfirm,
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape)
-            ) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Confirm All",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
         }
     }
 }
@@ -378,9 +371,9 @@ fun TextureItem(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(80.dp)
+        modifier = Modifier.width(70.dp)
     ) {
-        Box(modifier = Modifier.size(80.dp)) {
+        Box(modifier = Modifier.size(70.dp)) {
             AsyncImage(
                 model = texture.imageUri,
                 contentDescription = texture.name,

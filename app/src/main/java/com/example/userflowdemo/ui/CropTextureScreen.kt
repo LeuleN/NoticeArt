@@ -112,6 +112,60 @@ fun CropTextureScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            val b = bitmap ?: return@IconButton
+                            if (imageSize.width <= 0) return@IconButton
+
+                            try {
+                                val left = cropRect.left.coerceIn(0f, imageSize.width)
+                                val top = cropRect.top.coerceIn(0f, imageSize.height)
+                                val right = cropRect.right.coerceIn(0f, imageSize.width)
+                                val bottom = cropRect.bottom.coerceIn(0f, imageSize.height)
+
+                                val width = right - left
+                                val height = bottom - top
+
+                                if (width <= 0 || height <= 0) return@IconButton
+
+                                val scaleX = b.width.toFloat() / imageSize.width
+                                val scaleY = b.height.toFloat() / imageSize.height
+
+                                val bitmapLeft = (left * scaleX).toInt().coerceIn(0, b.width - 1)
+                                val bitmapTop = (top * scaleY).toInt().coerceIn(0, b.height - 1)
+                                val bitmapWidth = (width * scaleX).toInt().coerceIn(1, b.width - bitmapLeft)
+                                val bitmapHeight = (height * scaleY).toInt().coerceIn(1, b.height - bitmapTop)
+
+                                val cropped = Bitmap.createBitmap(b, bitmapLeft, bitmapTop, bitmapWidth, bitmapHeight)
+                                
+                                val file = File(context.cacheDir, "texture_${UUID.randomUUID()}.png")
+                                FileOutputStream(file).use { out ->
+                                    cropped.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                }
+                                
+                                val texture = Texture(
+                                    id = existingTexture?.id ?: UUID.randomUUID().toString(),
+                                    imageUri = Uri.fromFile(file).toString(),
+                                    name = typedName.ifBlank { placeholderName },
+                                    isCustomName = typedName.isNotBlank(),
+                                    cropRect = cropRect
+                                )
+                                
+                                viewModel.addTextureToImage(mediaId, texture)
+                                onBack()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Crop failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Confirm",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             )
         }
@@ -120,14 +174,14 @@ fun CropTextureScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
                     .onGloballyPositioned { displaySize = it.size.toSize() }
             ) {
                 if (bitmap != null) {
@@ -164,7 +218,7 @@ fun CropTextureScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Box(
                 modifier = Modifier
@@ -205,65 +259,6 @@ fun CropTextureScreen(
                         }
                         innerTextField()
                     }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            IconButton(
-                onClick = {
-                    val b = bitmap ?: return@IconButton
-                    if (imageSize.width <= 0) return@IconButton
-
-                    try {
-                        val left = cropRect.left.coerceIn(0f, imageSize.width)
-                        val top = cropRect.top.coerceIn(0f, imageSize.height)
-                        val right = cropRect.right.coerceIn(0f, imageSize.width)
-                        val bottom = cropRect.bottom.coerceIn(0f, imageSize.height)
-
-                        val width = right - left
-                        val height = bottom - top
-
-                        if (width <= 0 || height <= 0) return@IconButton
-
-                        val scaleX = b.width.toFloat() / imageSize.width
-                        val scaleY = b.height.toFloat() / imageSize.height
-
-                        val bitmapLeft = (left * scaleX).toInt().coerceIn(0, b.width - 1)
-                        val bitmapTop = (top * scaleY).toInt().coerceIn(0, b.height - 1)
-                        val bitmapWidth = (width * scaleX).toInt().coerceIn(1, b.width - bitmapLeft)
-                        val bitmapHeight = (height * scaleY).toInt().coerceIn(1, b.height - bitmapTop)
-
-                        val cropped = Bitmap.createBitmap(b, bitmapLeft, bitmapTop, bitmapWidth, bitmapHeight)
-                        
-                        val file = File(context.cacheDir, "texture_${UUID.randomUUID()}.png")
-                        FileOutputStream(file).use { out ->
-                            cropped.compress(Bitmap.CompressFormat.PNG, 100, out)
-                        }
-                        
-                        val texture = Texture(
-                            id = existingTexture?.id ?: UUID.randomUUID().toString(),
-                            imageUri = Uri.fromFile(file).toString(),
-                            name = typedName.ifBlank { placeholderName },
-                            isCustomName = typedName.isNotBlank(),
-                            cropRect = cropRect
-                        )
-                        
-                        viewModel.addTextureToImage(mediaId, texture)
-                        onBack()
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Crop failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                modifier = Modifier
-                    .size(72.dp)
-                    .border(3.dp, Color.Black, CircleShape)
-            ) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Confirm",
-                    modifier = Modifier.size(40.dp),
-                    tint = Color.Black
                 )
             }
         }

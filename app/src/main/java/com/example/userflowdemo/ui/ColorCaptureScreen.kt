@@ -154,6 +154,15 @@ fun ColorCaptureScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    IconButton(onClick = onConfirm) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Confirm",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             )
         },
@@ -163,7 +172,7 @@ fun ColorCaptureScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             var magnifierOffset by remember { mutableStateOf(Offset.Unspecified) }
@@ -258,7 +267,7 @@ fun ColorCaptureScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Suggested Colors Section
             if (aiState is AiState.Success) {
@@ -295,14 +304,14 @@ fun ColorCaptureScreen(
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(suggestions) { colorInt ->
                             val isAlreadyCaptured = capturedColors.contains(colorInt)
                             Box(
                                 modifier = Modifier
-                                    .size(50.dp)
+                                    .size(44.dp)
                                     .clip(CircleShape)
                                     .background(Color(colorInt))
                                     .border(
@@ -320,14 +329,14 @@ fun ColorCaptureScreen(
                                         Icons.Default.Check,
                                         contentDescription = null,
                                         tint = if (Color(colorInt).luminance() > 0.5f) Color.Black else Color.White,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 } else {
                                     Icon(
                                         Icons.Default.Add,
                                         contentDescription = null,
                                         tint = if (Color(colorInt).luminance() > 0.5f) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
@@ -336,13 +345,13 @@ fun ColorCaptureScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Controls and Selected Colors
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp),
+                    .height(120.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -368,7 +377,7 @@ fun ColorCaptureScreen(
                             }
                         }
                         
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         
                         // Color Count Stepper
                         Row(
@@ -380,27 +389,27 @@ fun ColorCaptureScreen(
                         ) {
                             IconButton(
                                 onClick = { viewModel.setColorDetectionCount(colorDetectionCount - 1) },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(28.dp)
                             ) {
-                                Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                                Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(18.dp))
                             }
                             
                             Text(
                                 text = colorDetectionCount.toString(),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp)
                             )
                             
                             IconButton(
                                 onClick = { viewModel.setColorDetectionCount(colorDetectionCount + 1) },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(28.dp)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = "Increase")
+                                Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(18.dp))
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         
                         TextButton(
                             onClick = { showClearConfirm = true },
@@ -483,22 +492,6 @@ fun ColorCaptureScreen(
                         )
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            IconButton(
-                onClick = { onConfirm() },
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape)
-            ) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Confirm",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(32.dp)
-                )
             }
         }
     }
