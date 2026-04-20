@@ -75,16 +75,81 @@ https://drive.google.com/file/d/1eorOxQnASYotOsx3S1g7wiapobNuUrk6/view
 
 ---
 
-### 🚀 How to Use the App
+## How to Use the App
 
-1. Enter your name on the welcome screen
-2. Tap **New Entry**
-3. Add media (image or audio)
-4. Use tools to extract colors or textures
-5. Add observations
-6. Save the entry
-7. View entries on the home screen
-8. Export to PDF (optional)
+### 1. Launch App
+- Open **NoticeArt**
+- Enter your name on the welcome screen
+- Tap **Next**
+
+---
+
+### 2. Create a New Entry
+- Tap **+ (New Entry)**
+- Enter a title for your entry
+
+---
+
+### 3. Add Media
+- Tap the image icon to add an image
+- (Optional) Add audio if available
+- Verify the image appears in the entry
+
+---
+
+### 4. Capture Colors
+- Tap the **Color tool(eyedropper)**
+- Tap directly on the image to extract colors
+- Confirm selected colors appear in the preview
+
+---
+
+### 5. Capture Textures
+- Tap the **Texture tool**
+- Select/crop regions of the image
+- Add textures to the entry
+
+---
+
+### 6. Add Observations
+- Enter notes in the observation text field
+
+---
+
+### 7. Save Entry
+- Tap the **checkmark (✔)**
+- Return to the home screen
+- Verify the entry appears in the list/grid
+
+---
+
+### 8. View Entry
+- Tap the saved entry
+- Verify:
+  - Image(s)
+  - Extracted colors
+  - Textures
+  - Observations
+
+---
+
+### 9. Edit Entry
+- Tap the **edit (pencil) icon**
+- Modify any content
+- Save changes
+
+---
+
+### 10. Delete Entry
+- Tap the **delete (trash) icon**
+- Confirm deletion
+- (Optional) Use undo if available
+
+---
+
+### 11. Export Entry
+- Tap the **export icon**
+- Generate and view/share the PDF
 
 ---
 
