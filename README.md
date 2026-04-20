@@ -38,14 +38,60 @@ NoticeArt solves this by providing a **media-first system** that allows users to
 
 ---
 
-## Setup Instructions
+## Setup & Deployment Instructions
+
+### 📱 Option 1: Install the App (Recommended)
+
+Download the APK:
+https://drive.google.com/file/d/1eorOxQnASYotOsx3S1g7wiapobNuUrk6/view
+
+**Steps:**
+1. Open the link on your Android device
+2. Tap **Download**
+3. If prompted, select **Download anyway**
+4. Open the downloaded file
+5. If installation is blocked:
+  - Enable **Install from this source**
+6. Tap **Install**
+7. Open the app
+
+**Note:**
+- Android devices only
+- No login required
+- Tested on Android 9 – Android 14
+
+---
+
+### 💻 Option 2: Run from Source (Android Studio)
 
 1. Clone the repository
 2. Open the project in Android Studio
 3. Sync Gradle
-4. Run on emulator or physical device
+4. Connect a physical device OR start an emulator
+5. Press ▶ Run
 
 **Recommended:** Android 11+ for best performance
+
+---
+
+### 🚀 How to Use the App
+
+1. Enter your name on the welcome screen
+2. Tap **New Entry**
+3. Add media (image or audio)
+4. Use tools to extract colors or textures
+5. Add observations
+6. Save the entry
+7. View entries on the home screen
+8. Export to PDF (optional)
+
+---
+
+### ⚠️ Notes
+
+- This is a mobile-only application (Android)
+- No user accounts or login required
+- Ensure permissions are granted for media access
 
 ---
 
