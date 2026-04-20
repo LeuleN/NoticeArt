@@ -15,10 +15,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -50,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import coil.compose.rememberAsyncImagePainter
 import com.example.userflowdemo.AiState
@@ -77,6 +81,12 @@ fun ColorCaptureScreen(
     val draft by viewModel.draft.collectAsState()
 
     var showClearConfirm by remember { mutableStateOf(false) }
+    var showSortConfirm by remember { mutableStateOf(false) }
+
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragDisplacement by remember { mutableStateOf(0f) }
+    val density = LocalDensity.current
+    val itemWidthPx = remember(density) { with(density) { 88.dp.toPx() } } // Swatch(56) + Padding(16) + SpacedBy(16)
 
     // Derived State: Single Source of Truth for captured colors
     // We lookup the current colors from the ViewModel's draft StateFlow
@@ -111,6 +121,32 @@ fun ColorCaptureScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showSortConfirm) {
+        AlertDialog(
+            onDismissRequest = { showSortConfirm = false },
+            title = { Text("Organize Colors?") },
+            text = { Text("Organize colors into a gradient?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val sorted = capturedColors.sortedBy { colorInt ->
+                        val hsv = FloatArray(3)
+                        android.graphics.Color.colorToHSV(colorInt, hsv)
+                        hsv[0]
+                    }
+                    viewModel.updateColors(imageUri, sorted, mediaIndex, mediaId)
+                    showSortConfirm = false
+                }) {
+                    Text("Organize")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSortConfirm = false }) {
                     Text("Cancel")
                 }
             }
@@ -360,20 +396,43 @@ fun ColorCaptureScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Surface(
-                            onClick = { viewModel.suggestColorsForImage(context, imageUri) },
-                            enabled = aiState !is AiState.Loading,
-                            shape = RoundedCornerShape(24.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            modifier = Modifier.height(48.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            Surface(
+                                onClick = { viewModel.suggestColorsForImage(context, imageUri) },
+                                enabled = aiState !is AiState.Loading,
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.height(48.dp)
                             ) {
-                                Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Text("notice colors", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Text("notice colors", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                                }
+                            }
+
+                            Surface(
+                                onClick = { if (capturedColors.isNotEmpty()) showSortConfirm = true },
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.height(48.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "Sort", 
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
                             }
                         }
                         
@@ -448,10 +507,57 @@ fun ColorCaptureScreen(
                     }
                 }
 
-                items(capturedColors) { colorInt ->
+                itemsIndexed(capturedColors, key = { _, color -> color }) { index, colorInt ->
+                    val isDragging = draggingIndex == index
+                    val offset = if (isDragging) dragDisplacement else 0f
+
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                            .graphicsLayer {
+                                translationX = offset
+                                scaleX = if (isDragging) 1.1f else 1f
+                                scaleY = if (isDragging) 1.1f else 1f
+                                alpha = if (isDragging) 0.9f else 1f
+                                shadowElevation = if (isDragging) 8.dp.toPx() else 0f
+                            }
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .animateItem()
+                            .pointerInput(capturedColors) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { draggingIndex = index },
+                                    onDragEnd = {
+                                        draggingIndex = null
+                                        dragDisplacement = 0f
+                                    },
+                                    onDragCancel = {
+                                        draggingIndex = null
+                                        dragDisplacement = 0f
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragDisplacement += dragAmount.x
+
+                                        val currentIdx = draggingIndex ?: return@detectDragGesturesAfterLongPress
+                                        val targetIdx = when {
+                                            dragDisplacement > itemWidthPx / 2 -> currentIdx + 1
+                                            dragDisplacement < -itemWidthPx / 2 -> currentIdx - 1
+                                            else -> currentIdx
+                                        }
+
+                                        if (targetIdx in capturedColors.indices && targetIdx != currentIdx) {
+                                            val newList = capturedColors.toMutableList()
+                                            val item = newList.removeAt(currentIdx)
+                                            newList.add(targetIdx, item)
+
+                                            viewModel.updateColors(imageUri, newList, mediaIndex, mediaId)
+                                            draggingIndex = targetIdx
+                                            dragDisplacement -= (targetIdx - currentIdx) * itemWidthPx
+                                        }
+                                    }
+                                )
+                            }
                     ) {
                         Box(
                             contentAlignment = Alignment.TopEnd,
