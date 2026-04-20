@@ -17,10 +17,12 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -79,6 +81,7 @@ fun ColorCaptureScreen(
     val aiState by viewModel.aiState.collectAsState()
     val colorDetectionCount by viewModel.colorDetectionCount.collectAsState()
     val draft by viewModel.draft.collectAsState()
+    val listState = rememberLazyListState()
 
     var showClearConfirm by remember { mutableStateOf(false) }
     var showSortConfirm by remember { mutableStateOf(false) }
@@ -134,11 +137,15 @@ fun ColorCaptureScreen(
             text = { Text("Organize colors into a gradient?") },
             confirmButton = {
                 TextButton(onClick = {
-                    val sorted = capturedColors.sortedBy { colorInt ->
-                        val hsv = FloatArray(3)
-                        android.graphics.Color.colorToHSV(colorInt, hsv)
-                        hsv[0]
-                    }
+                    val sorted = capturedColors.sortedWith(compareBy<Int> { colorInt ->
+                        val hsl = FloatArray(3)
+                        androidx.core.graphics.ColorUtils.colorToHSL(colorInt, hsl)
+                        hsl[0] // Hue
+                    }.thenBy { colorInt ->
+                        val hsl = FloatArray(3)
+                        androidx.core.graphics.ColorUtils.colorToHSL(colorInt, hsl)
+                        hsl[2] // Lightness
+                    })
                     viewModel.updateColors(imageUri, sorted, mediaIndex, mediaId)
                     showSortConfirm = false
                 }) {
@@ -151,6 +158,38 @@ fun ColorCaptureScreen(
                 }
             }
         )
+    }
+
+    // Auto-scroll logic for drag-and-drop
+    LaunchedEffect(draggingIndex) {
+        if (draggingIndex != null) {
+            while (true) {
+                val currentIdx = draggingIndex ?: break
+                val layoutInfo = listState.layoutInfo
+                val visibleItems = layoutInfo.visibleItemsInfo
+                val draggedColor = capturedColors.getOrNull(currentIdx) ?: break
+                val itemInfo = visibleItems.find { it.key == draggedColor }
+                
+                if (itemInfo != null) {
+                    val rowWidth = layoutInfo.viewportSize.width.toFloat()
+                    // Use the item's current position in the row + its relative drag displacement
+                    val itemCenter = itemInfo.offset.toFloat() + itemInfo.size.toFloat() / 2f + dragDisplacement
+                    
+                    val scrollThreshold = 150f
+                    val maxScrollSpeed = 25f
+                    
+                    if (itemCenter < scrollThreshold) {
+                        // Smoothly increase speed as we get closer to the edge
+                        val intensity = (scrollThreshold - itemCenter) / scrollThreshold
+                        listState.scrollBy(-(maxScrollSpeed * intensity))
+                    } else if (itemCenter > rowWidth - scrollThreshold) {
+                        val intensity = (itemCenter - (rowWidth - scrollThreshold)) / scrollThreshold
+                        listState.scrollBy(maxScrollSpeed * intensity)
+                    }
+                }
+                kotlinx.coroutines.delay(16)
+            }
+        }
     }
 
     var isEyedropperActive by rememberSaveable { mutableStateOf(false) }
@@ -385,6 +424,7 @@ fun ColorCaptureScreen(
 
             // Controls and Selected Colors
             LazyRow(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp),
@@ -420,7 +460,8 @@ fun ColorCaptureScreen(
                             Surface(
                                 onClick = { if (capturedColors.isNotEmpty()) showSortConfirm = true },
                                 shape = RoundedCornerShape(24.dp),
-                                color = MaterialTheme.colorScheme.primary,
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                 modifier = Modifier.height(48.dp)
                             ) {
                                 Box(
@@ -430,7 +471,7 @@ fun ColorCaptureScreen(
                                     Text(
                                         "Sort", 
                                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onPrimary
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -510,6 +551,10 @@ fun ColorCaptureScreen(
                 itemsIndexed(capturedColors, key = { _, color -> color }) { index, colorInt ->
                     val isDragging = draggingIndex == index
                     val offset = if (isDragging) dragDisplacement else 0f
+                    
+                    // CRITICAL: Gesture detector must use updated state to avoid stale index captures.
+                    // This ensures that after reordering, long-pressing an item correctly identifies its current index.
+                    val currentItemIndex by rememberUpdatedState(index)
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -524,9 +569,12 @@ fun ColorCaptureScreen(
                             }
                             .zIndex(if (isDragging) 1f else 0f)
                             .animateItem()
-                            .pointerInput(capturedColors) {
+                            .pointerInput(Unit) {
                                 detectDragGesturesAfterLongPress(
-                                    onDragStart = { draggingIndex = index },
+                                    onDragStart = { 
+                                        dragDisplacement = 0f // Reset displacement on new drag
+                                        draggingIndex = currentItemIndex 
+                                    },
                                     onDragEnd = {
                                         draggingIndex = null
                                         dragDisplacement = 0f
@@ -540,14 +588,13 @@ fun ColorCaptureScreen(
                                         dragDisplacement += dragAmount.x
 
                                         val currentIdx = draggingIndex ?: return@detectDragGesturesAfterLongPress
-                                        val targetIdx = when {
-                                            dragDisplacement > itemWidthPx / 2 -> currentIdx + 1
-                                            dragDisplacement < -itemWidthPx / 2 -> currentIdx - 1
-                                            else -> currentIdx
-                                        }
+                                        
+                                        // Improved reordering logic: move multiple positions in one gesture
+                                        val shift = (dragDisplacement / itemWidthPx).roundToInt()
+                                        val targetIdx = (currentIdx + shift).coerceIn(latestCapturedColors.indices)
 
-                                        if (targetIdx in capturedColors.indices && targetIdx != currentIdx) {
-                                            val newList = capturedColors.toMutableList()
+                                        if (targetIdx != currentIdx) {
+                                            val newList = latestCapturedColors.toMutableList()
                                             val item = newList.removeAt(currentIdx)
                                             newList.add(targetIdx, item)
 
