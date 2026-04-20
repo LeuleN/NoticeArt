@@ -41,6 +41,7 @@ NoticeArt solves this by providing a **media-first system** that allows users to
 ## Setup & Deployment Instructions
 
 ### 📱 Option 1: Install the App (Recommended)
+<img src="./screenshots/noticeart_link.png">
 
 Download the APK:
 https://drive.google.com/file/d/1eorOxQnASYotOsx3S1g7wiapobNuUrk6/view
