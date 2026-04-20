@@ -48,9 +48,9 @@ https://drive.google.com/file/d/1eorOxQnASYotOsx3S1g7wiapobNuUrk6/view
 
 **Steps:**
 1. Open the link on your Android device
-2. Tap **Download**
+2. Tap **Download** (without a google account tap+hold open in new tab)
 3. If prompted, select **Download anyway**
-4. Open the downloaded file
+4. Open the downloaded file (Either in Chrome downloads or the Files app)
 5. If installation is blocked:
   - Enable **Install from this source**
 6. Tap **Install**
