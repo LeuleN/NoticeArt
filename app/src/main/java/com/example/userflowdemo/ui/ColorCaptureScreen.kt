@@ -464,7 +464,7 @@ fun ColorCaptureScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp),
+                    .height(140.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -473,44 +473,20 @@ fun ColorCaptureScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Surface(
+                            onClick = { viewModel.suggestColorsForImage(context, imageUri) },
+                            enabled = aiState !is AiState.Loading,
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.height(48.dp)
                         ) {
-                            Surface(
-                                onClick = { viewModel.suggestColorsForImage(context, imageUri) },
-                                enabled = aiState !is AiState.Loading,
-                                shape = RoundedCornerShape(24.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                modifier = Modifier.height(48.dp)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Text("notice colors", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-                                }
-                            }
-
-                            Surface(
-                                onClick = { if (capturedColors.isNotEmpty()) showSortConfirm = true },
-                                shape = RoundedCornerShape(24.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                                modifier = Modifier.height(48.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        "Sort", 
-                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
+                                Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text("notice colors", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                             }
                         }
                         
@@ -563,25 +539,51 @@ fun ColorCaptureScreen(
                 }
 
                 item {
-                    IconButton(
-                        onClick = { isEyedropperActive = !isEyedropperActive },
-                        modifier = Modifier
-                            .size(56.dp)
-                            .border(
-                                width = 2.dp,
-                                color = if (isEyedropperActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                                shape = CircleShape
-                            )
-                            .background(
-                                if (isEyedropperActive) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                CircleShape
-                            )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            Icons.Outlined.Colorize,
-                            contentDescription = "Activate Eyedropper",
-                            tint = if (isEyedropperActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                        )
+                        Surface(
+                            onClick = { if (capturedColors.isNotEmpty()) showSortConfirm = true },
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "Sort", 
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        IconButton(
+                            onClick = { isEyedropperActive = !isEyedropperActive },
+                            modifier = Modifier
+                                .size(56.dp)
+                                .border(
+                                    width = 2.dp,
+                                    color = if (isEyedropperActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    shape = CircleShape
+                                )
+                                .background(
+                                    if (isEyedropperActive) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    CircleShape
+                                )
+                        ) {
+                            Icon(
+                                Icons.Outlined.Colorize,
+                                contentDescription = "Activate Eyedropper",
+                                tint = if (isEyedropperActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
 
