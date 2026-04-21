@@ -137,15 +137,52 @@ fun ColorCaptureScreen(
             text = { Text("Organize colors into a gradient?") },
             confirmButton = {
                 TextButton(onClick = {
-                    val sorted = capturedColors.sortedWith(compareBy<Int> { colorInt ->
-                        val hsl = FloatArray(3)
-                        androidx.core.graphics.ColorUtils.colorToHSL(colorInt, hsl)
-                        hsl[0] // Hue
-                    }.thenBy { colorInt ->
-                        val hsl = FloatArray(3)
-                        androidx.core.graphics.ColorUtils.colorToHSL(colorInt, hsl)
-                        hsl[2] // Lightness
-                    })
+                    val sorted = capturedColors.sortedWith { c1, c2 ->
+                        val hsl1 = FloatArray(3)
+                        val hsl2 = FloatArray(3)
+
+                        androidx.core.graphics.ColorUtils.colorToHSL(c1, hsl1)
+                        androidx.core.graphics.ColorUtils.colorToHSL(c2, hsl2)
+
+                        fun getCategory(hsl: FloatArray): Int {
+                            val s = hsl[1]
+                            val l = hsl[2]
+
+                            val isNeutral = s < 0.15f
+                            val isVeryDark = l < 0.22f
+                            val isMuddy = s < 0.35f && l < 0.5f && !isNeutral
+
+                            return when {
+                                isNeutral -> 0
+                                isMuddy || isVeryDark -> 2
+                                else -> 1
+                            }
+                        }
+
+                        val cat1 = getCategory(hsl1)
+                        val cat2 = getCategory(hsl2)
+
+                        if (cat1 != cat2) {
+                            cat1.compareTo(cat2)
+                        } else {
+                            when (cat1) {
+                                0 -> {
+                                    // Neutrals: Light → Dark
+                                    hsl2[2].compareTo(hsl1[2])
+                                }
+                                1 -> {
+                                    // Chromatic: Hue → Lightness
+                                    val hueComp = hsl1[0].compareTo(hsl2[0])
+                                    if (hueComp != 0) hueComp
+                                    else hsl2[2].compareTo(hsl1[2])
+                                }
+                                else -> {
+                                    // Outliers: Light → Dark
+                                    hsl2[2].compareTo(hsl1[2])
+                                }
+                            }
+                        }
+                    }
                     viewModel.updateColors(imageUri, sorted, mediaIndex, mediaId)
                     showSortConfirm = false
                 }) {
