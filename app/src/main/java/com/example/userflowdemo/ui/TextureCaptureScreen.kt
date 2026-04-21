@@ -17,10 +17,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -451,24 +455,42 @@ fun RenameDialog(
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
-    var name by remember { mutableStateOf(initialName) }
+    var textFieldValue by remember {
+        mutableStateOf(
+            TextFieldValue(
+                text = initialName,
+                selection = TextRange(0, initialName.length)
+            )
+        )
+    }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Rename Texture") },
         text = {
             TextField(
-                value = name,
-                onValueChange = { name = it },
+                value = textFieldValue,
+                onValueChange = { textFieldValue = it },
                 label = { Text("Name") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
             )
         },
         confirmButton = {
             TextButton(
-                onClick = { if (name.isNotBlank()) onSave(name) },
-                enabled = name.isNotBlank()
+                onClick = {
+                    if (textFieldValue.text.isNotBlank()) {
+                        onSave(textFieldValue.text)
+                    }
+                },
+                enabled = textFieldValue.text.isNotBlank()
             ) {
                 Text("Save")
             }
