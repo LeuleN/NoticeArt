@@ -61,18 +61,9 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
     private val _sortOption = MutableStateFlow(EntrySortOption.LAST_MODIFIED)
     val sortOption: StateFlow<EntrySortOption> = _sortOption.asStateFlow()
 
-    private fun sortTextures(textures: List<Texture>): List<Texture> {
-        val (manual, auto) = textures.partition { it.autoIndex == null }
-        return manual.sortedBy { it.name.lowercase() } + auto.sortedBy { it.autoIndex ?: Int.MAX_VALUE }
-    }
-
     val entries: StateFlow<List<Entry>> =
         combine(repository.allEntries, _sortOption) { list, sortOption ->
-            val nonDraftEntries = list.filter { !it.isDraft }.map { entry ->
-                entry.copy(media = entry.media.map { item ->
-                    item.copy(textures = sortTextures(item.textures))
-                })
-            }
+            val nonDraftEntries = list.filter { !it.isDraft }
 
             when (sortOption) {
                 EntrySortOption.LAST_MODIFIED ->
@@ -97,24 +88,12 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     private val _draft = MutableStateFlow<Entry?>(null)
-    val draft: StateFlow<Entry?> = _draft.map { entry ->
-        entry?.copy(media = entry.media.map { item ->
-            item.copy(textures = sortTextures(item.textures))
-        })
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = null
-    )
+    val draft: StateFlow<Entry?> = _draft.asStateFlow()
     
     private val draftMutex = Mutex()
 
     val mediaItems: StateFlow<List<MediaItem>> = _draft
-        .map { entry ->
-            entry?.media?.map { item ->
-                item.copy(textures = sortTextures(item.textures))
-            } ?: emptyList()
-        }
+        .map { it?.media ?: emptyList() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -521,24 +500,6 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
                 val updatedMedia = draft.media.map { item ->
                     if (item.id == mediaId) {
                         item.copy(textures = item.textures.filter { it.id != textureId })
-                    } else item
-                }
-                updated = draft.copy(media = updatedMedia)
-                updated
-            }
-            updated?.let { persistDraftInternal(it) }
-        }
-    }
-
-    fun updateTextures(mediaId: String, textures: List<Texture>) {
-        viewModelScope.launch {
-            var updated: Entry? = null
-            _draft.update { draft ->
-                if (draft == null) return@update null
-                
-                val updatedMedia = draft.media.map { item ->
-                    if (item.id == mediaId) {
-                        item.copy(textures = textures)
                     } else item
                 }
                 updated = draft.copy(media = updatedMedia)
