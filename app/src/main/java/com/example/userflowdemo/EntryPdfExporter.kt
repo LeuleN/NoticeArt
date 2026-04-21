@@ -67,13 +67,11 @@ class EntryPdfExporter(private val context: Context) {
             textSize = 32f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             color = Color.BLACK
-            textAlign = Paint.Align.CENTER
         }
         val datePaint = TextPaint().apply {
             isAntiAlias = true
             textSize = 14f
             color = Color.GRAY
-            textAlign = Paint.Align.CENTER
         }
         val obsPaint = TextPaint().apply {
             isAntiAlias = true
@@ -83,6 +81,7 @@ class EntryPdfExporter(private val context: Context) {
 
         val titleLayout = createStaticLayout(entry.title, titlePaint, contentWidth.toInt(), Layout.Alignment.ALIGN_CENTER)
         val dateText = SimpleDateFormat("EEEE, MMMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(entry.timestamp))
+        val dateLayout = createStaticLayout(dateText, datePaint, contentWidth.toInt(), Layout.Alignment.ALIGN_CENTER)
         val observation = entry.observation?.takeIf { it.isNotBlank() } ?: ""
 
         // 1. Draw Title (horizontally centered)
@@ -90,8 +89,8 @@ class EntryPdfExporter(private val context: Context) {
         currentY += titleLayout.height + 12f
 
         // 2. Draw Date (horizontally centered)
-        canvas!!.drawText(dateText, pageWidth / 2f, currentY + 14f, datePaint)
-        currentY += 80f // Large spacing before Observations section
+        dateLayout.drawOnCanvas(canvas!!, margin, currentY)
+        currentY += dateLayout.height + 20f // Large spacing before Observations section
 
         // 3. Draw Observations (left-aligned)
         if (observation.isNotEmpty()) {
@@ -173,8 +172,8 @@ class EntryPdfExporter(private val context: Context) {
                 currentY = drawSectionHeader("Color Palette", canvas!!, currentY)
                 
                 val swatchSize = 50f
-                val swatchSpacing = 25f
-                val itemsPerRow = 5
+                val swatchSpacing = (contentWidth - (8 * swatchSize)) / 7f
+                val itemsPerRow = 8
                 
                 mediaItem.colors.chunked(itemsPerRow).forEach { rowColors ->
                     ensureSpace(swatchSize + 50f)
