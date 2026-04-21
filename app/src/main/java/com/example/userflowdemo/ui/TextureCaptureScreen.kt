@@ -1,9 +1,13 @@
 package com.example.userflowdemo.ui
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,17 +20,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.userflowdemo.EntryViewModel
 import com.example.userflowdemo.Texture
 import com.example.userflowdemo.TextureDetectionState
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+import androidx.compose.ui.input.pointer.pointerInput
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +58,12 @@ fun TextureCaptureScreen(
     
     val textureState by viewModel.textureState.collectAsState()
     val textureDetectionCount by viewModel.textureDetectionCount.collectAsState()
+
+    val listState = rememberLazyListState()
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragDisplacement by remember { mutableStateOf(0f) }
+    val density = LocalDensity.current
+    val itemWidthPx = remember(density) { with(density) { 86.dp.toPx() } } // Item width(70) + padding
 
     var textureToRename by remember { mutableStateOf<Texture?>(null) }
     var showClearConfirm by remember { mutableStateOf(false) }
@@ -98,6 +113,36 @@ fun TextureCaptureScreen(
             }
         )
     }
+
+    // Auto-scroll logic for drag-and-drop
+    LaunchedEffect(draggingIndex) {
+        if (draggingIndex != null) {
+            while (true) {
+                val currentIdx = draggingIndex ?: break
+                val layoutInfo = listState.layoutInfo
+                val visibleItems = layoutInfo.visibleItemsInfo
+                val draggedTexture = sortedTextures.getOrNull(currentIdx) ?: break
+                val itemInfo = visibleItems.find { it.key == draggedTexture.id }
+                
+                if (itemInfo != null) {
+                    val rowWidth = layoutInfo.viewportSize.width.toFloat()
+                    val itemCenter = itemInfo.offset.toFloat() + itemInfo.size.toFloat() / 2f + dragDisplacement
+                    
+                    val scrollThreshold = 150f
+                    val maxScrollSpeed = 25f
+                    
+                    if (itemCenter < scrollThreshold) {
+                        listState.scrollBy(-(maxScrollSpeed * ((scrollThreshold - itemCenter) / scrollThreshold)))
+                    } else if (itemCenter > rowWidth - scrollThreshold) {
+                        listState.scrollBy(maxScrollSpeed * ((itemCenter - (rowWidth - scrollThreshold)) / scrollThreshold))
+                    }
+                }
+                kotlinx.coroutines.delay(16)
+            }
+        }
+    }
+
+    val latestTextures by rememberUpdatedState(sortedTextures)
 
     Scaffold(
         topBar = {
@@ -258,6 +303,7 @@ fun TextureCaptureScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             LazyRow(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(140.dp),
@@ -345,15 +391,66 @@ fun TextureCaptureScreen(
                     }
                 }
 
-                items(sortedTextures, key = { it.id }) { texture ->
-                    TextureItem(
-                        texture = texture,
-                        onDelete = {
-                            viewModel.removeTextureFromImage(mediaId, texture.id)
-                        },
-                        onRename = { textureToRename = texture },
-                        onEditCrop = { onEditTexture(texture) }
-                    )
+                itemsIndexed(sortedTextures, key = { _, texture -> texture.id }) { index, texture ->
+                    val isDragging = draggingIndex == index
+                    val offset = if (isDragging) dragDisplacement else 0f
+                    val currentItemIndex by rememberUpdatedState(index)
+
+                    Box(
+                        modifier = Modifier
+                            .graphicsLayer {
+                                translationX = offset
+                                scaleX = if (isDragging) 1.1f else 1f
+                                scaleY = if (isDragging) 1.1f else 1f
+                                alpha = if (isDragging) 0.9f else 1f
+                                shadowElevation = if (isDragging) 8.dp.toPx() else 0f
+                            }
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .animateItem()
+                            .pointerInput(Unit) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { 
+                                        dragDisplacement = 0f
+                                        draggingIndex = currentItemIndex 
+                                    },
+                                    onDragEnd = {
+                                        draggingIndex = null
+                                        dragDisplacement = 0f
+                                    },
+                                    onDragCancel = {
+                                        draggingIndex = null
+                                        dragDisplacement = 0f
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragDisplacement += dragAmount.x
+
+                                        val currentIdx = draggingIndex ?: return@detectDragGesturesAfterLongPress
+                                        val shift = (dragDisplacement / itemWidthPx).roundToInt()
+                                        val targetIdx = (currentIdx + shift).coerceIn(0, latestTextures.size - 1)
+
+                                        if (targetIdx != currentIdx) {
+                                            val newList = latestTextures.toMutableList()
+                                            val item = newList.removeAt(currentIdx)
+                                            newList.add(targetIdx, item)
+
+                                            viewModel.updateTextures(mediaId, newList)
+                                            draggingIndex = targetIdx
+                                            dragDisplacement -= (targetIdx - currentIdx) * itemWidthPx
+                                        }
+                                    }
+                                )
+                            }
+                    ) {
+                        TextureItem(
+                            texture = texture,
+                            onDelete = {
+                                viewModel.removeTextureFromImage(mediaId, texture.id)
+                            },
+                            onRename = { textureToRename = texture },
+                            onEditCrop = { onEditTexture(texture) }
+                        )
+                    }
                 }
             }
         }

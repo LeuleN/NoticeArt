@@ -530,6 +530,24 @@ class EntryViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateTextures(mediaId: String, textures: List<Texture>) {
+        viewModelScope.launch {
+            var updated: Entry? = null
+            _draft.update { draft ->
+                if (draft == null) return@update null
+                
+                val updatedMedia = draft.media.map { item ->
+                    if (item.id == mediaId) {
+                        item.copy(textures = textures)
+                    } else item
+                }
+                updated = draft.copy(media = updatedMedia)
+                updated
+            }
+            updated?.let { persistDraftInternal(it) }
+        }
+    }
+
     fun removeMediaItem(index: Int) {
         viewModelScope.launch {
             var updated: Entry? = null
