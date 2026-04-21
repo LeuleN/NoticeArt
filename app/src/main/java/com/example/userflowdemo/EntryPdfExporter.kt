@@ -134,10 +134,11 @@ class EntryPdfExporter(private val context: Context) {
                 startNewPage()
                 currentY = drawSectionHeader("Captured Textures", canvas!!, currentY)
                 
-                val textureSpacing = 20f
-                val textureSize = (contentWidth - 2 * textureSpacing) / 3f
+                val itemsPerRow = 5
+                val textureSpacing = 15f
+                val textureSize = (contentWidth - (itemsPerRow - 1) * textureSpacing) / itemsPerRow
                 
-                mediaItem.textures.chunked(3).forEach { rowTextures ->
+                mediaItem.textures.chunked(itemsPerRow).forEach { rowTextures ->
                     ensureSpace(textureSize + 50f)
                     var textureX = margin
                     
