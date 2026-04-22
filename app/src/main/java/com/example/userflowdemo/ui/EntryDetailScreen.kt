@@ -160,7 +160,7 @@ fun EntryDetailScreen(
                 if (mediaItem.colors.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(20.dp))
                     Text(
-                        text = "Palette Colors",
+                        text = "Color Palette",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.align(Alignment.Start)
